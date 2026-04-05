@@ -13,7 +13,7 @@
     <a target="_blank" href="LICENSE"><img src="https://img.shields.io/:license-MIT-blue.svg"></a>
 </p>
 
-[特性](#特性) | [快速开始](#快速开始) | [文档/演示](#文档演示) | [示例项目](#示例项目) | <a target="_blank" href="http://ssssssss.org/changelog.html">更新日志</a> | [项目截图](#项目截图) | [交流群](#交流群)
+[特性](#特性) | [快速开始](#快速开始) | [文档/演示](#文档演示) | [示例项目](#示例项目) | [SkyWalking集成](#skywalking集成) | <a target="_blank" href="http://ssssssss.org/changelog.html">更新日志</a> | [项目截图](#项目截图) | [交流群](#交流群)
 
 # 简介
 
@@ -75,6 +75,11 @@ magic-api.resource.location=/data/magic-api
 # 示例项目
 
 - [magic-api-example](https://gitee.com/ssssssss-team/magic-api-example)
+
+# SkyWalking集成
+
+- 使用说明文档：[`SKYWALKING_INTEGRATION.md`](SKYWALKING_INTEGRATION.md)
+- 文档包含：启动参数、最小验证步骤、常见“不生效”排查清单、链路断点场景说明
 
 # 项目截图
 | ![整体截图](https://images.gitee.com/uploads/images/2021/0711/105714_c1cacf2c_297689.png "整体截图") | ![代码提示](https://images.gitee.com/uploads/images/2021/0711/110448_11b6626b_297689.gif "代码提示") |
