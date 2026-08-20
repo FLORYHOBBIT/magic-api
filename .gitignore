@@ -6,4 +6,7 @@ out/
 .project
 .settings
 bin/
+.vscode
 .myeclipse
+.flyenv
+node_modules
