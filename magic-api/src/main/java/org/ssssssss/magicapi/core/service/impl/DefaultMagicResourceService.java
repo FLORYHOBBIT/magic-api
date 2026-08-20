@@ -528,9 +528,8 @@ public class DefaultMagicResourceService implements MagicResourceService, JsonCo
 			}
 			// 路径检查
 			if (storage.requirePath()) {
-                // FIXME
 				String newMappingKey = storage.buildKey(entity);
-                notBlank(newMappingKey, PATH_REQUIRED);
+				notBlank(newMappingKey, PATH_REQUIRED);
 				isTrue(pathCache.get(storage.folder()).entrySet().stream().noneMatch(entry -> entry.getValue().equals(newMappingKey) && !entry.getKey().equals(entity.getId())), PATH_CONFLICT);
 			}
 			storage.validate(entity);

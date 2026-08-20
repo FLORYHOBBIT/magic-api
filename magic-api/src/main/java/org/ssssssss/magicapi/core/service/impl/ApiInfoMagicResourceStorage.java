@@ -28,22 +28,22 @@ public class ApiInfoMagicResourceStorage extends AbstractPathMagicResourceStorag
 
 	@Override
 	public String buildMappingKey(ApiInfo info, String path) {
-		return info.getMethod().toUpperCase() + ":" + path;
+		String fullPath = Stream.of(path, info.getPath())
+				.filter(StringUtils::isNotBlank)
+				.collect(Collectors.joining("/"));
+		return info.getMethod().toUpperCase() + ":" + PathUtils.replaceSlash(fullPath);
 	}
 
 	@Override
 	public String buildMappingKey(ApiInfo info) {
-        String path = magicResourceService.getGroupPath(info.getGroupId());
-        path = Stream.of(this.prefix, path, info.getPath())
-                .filter(StringUtils::isNotBlank)
-                .collect(Collectors.joining("/"));
-
-        // 若分组+接口路径拼接后都是空，则向上返回空
-        if (this.prefix.equals(path)) {
-            return null;
-        }
-
-        return PathUtils.replaceSlash(buildMappingKey(info, path));
+		String path = Stream.of(this.prefix, magicResourceService.getGroupPath(info.getGroupId()))
+				.filter(StringUtils::isNotBlank)
+				.collect(Collectors.joining("/"));
+		// 若接口路径与父级分组路径均为空，则向上返回空，由上层校验 PATH_REQUIRED
+		if (this.prefix.equals(path) && StringUtils.isBlank(info.getPath())) {
+			return null;
+		}
+		return PathUtils.replaceSlash(buildMappingKey(info, path));
 	}
 
 	@Override

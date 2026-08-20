@@ -32,6 +32,10 @@ public abstract class AbstractMagicDynamicRegistry<T extends MagicEntity> implem
 	public boolean register(T entity) {
 		MappingNode<T> mappingNode = buildMappingNode(entity);
 		String newMappingKey = mappingNode.getMappingKey();
+		if (newMappingKey == null) {
+			// 无有效路径的接口无法注册，直接跳过
+			return false;
+		}
 		MappingNode<T> oldMappingNode = mappings.get(entity.getId());
 		if (oldMappingNode != null) {
 			String oldMappingKey = oldMappingNode.getMappingKey();
