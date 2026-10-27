@@ -1,0 +1,16 @@
+{
+  "name": "magic-upload",
+  "version": "1.0.0",
+  "description": "magic-api 数据上传插件：上传通道管理",
+  "main": "index.js",
+  "scripts": {
+    "build": "vite build"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "vue": "^3.2.31",
+    "@vitejs/plugin-vue": "^2.2.4",
+    "vite-plugin-svg-icons": "^1.1.0",
+    "vite": "^2.8.6"
+  }
+}
