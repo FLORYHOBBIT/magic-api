@@ -68,7 +68,10 @@ public final class PayloadCodec {
 		return result;
 	}
 
-	static Object normalize(Object value) {
+	/**
+	 * 把数据库值转换为适合 JSON 输出的值：日期转 "yyyy-MM-dd HH:mm:ss.SSS"，Clob 转字符串，其他非常规类型转 toString()
+	 */
+	public static Object normalize(Object value) {
 		if (value == null || value instanceof String || value instanceof Boolean
 				|| value instanceof Integer || value instanceof Long || value instanceof Short || value instanceof Byte
 				|| value instanceof BigDecimal || value instanceof BigInteger || value instanceof Double || value instanceof Float
