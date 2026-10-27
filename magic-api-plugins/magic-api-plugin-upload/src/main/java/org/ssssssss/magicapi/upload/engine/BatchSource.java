@@ -13,4 +13,14 @@ public interface BatchSource {
 	 * @return 下一批数据；返回 null 或空数据表示已读完
 	 */
 	BatchData fetch(Object checkpoint, int batchSize) throws Exception;
+
+	/**
+	 * 断点是否跨次执行保留
+	 * <p>
+	 * true（按递增字段读取）：断点一直保留，下次只上传新增的数据。
+	 * false（按 offset 分页、脚本传入的列表）：断点只用于中断后续传，数据全部读完后清除，下次从头开始。
+	 */
+	default boolean isIncremental() {
+		return true;
+	}
 }

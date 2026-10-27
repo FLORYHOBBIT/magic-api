@@ -64,7 +64,16 @@ public class UploadJobRunner {
 			String recordId = UUID.randomUUID().toString().replace("-", "");
 			JobListener listener = new CompositeJobListener(
 					new StoreJobListener(store, recordId, owner, lockTimeout, recordEmptyRuns), extraListeners);
-			return engine.run(options, source, channel, checkpoint, listener);
+			JobResult result = engine.run(options, source, channel, checkpoint, listener);
+			if (!source.isIncremental() && result.isExhausted() && result.getStatus() != JobStatus.FAILED) {
+				// offset 分页、列表来源：本轮数据已全部处理，下次从头开始
+				try {
+					store.resetCheckpoint(jobName);
+				} catch (Exception e) {
+					logger.warn("上传任务[{}]清除断点失败，下次执行可能读不到数据，请手工调用 resetCheckpoint", jobName, e);
+				}
+			}
+			return result;
 		} finally {
 			try {
 				store.unlock(jobName, owner);

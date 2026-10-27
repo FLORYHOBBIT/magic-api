@@ -39,6 +39,19 @@ public class JobResult {
 
 	private long endTime;
 
+	/**
+	 * 数据来源已全部读完（区别于达到最大批次数、失败中止）
+	 */
+	private boolean exhausted;
+
+	public boolean isExhausted() {
+		return exhausted;
+	}
+
+	void setExhausted(boolean exhausted) {
+		this.exhausted = exhausted;
+	}
+
 	private final List<BatchResult> batches = new ArrayList<>();
 
 	public JobResult(String jobName) {

@@ -66,6 +66,7 @@ public class BatchEngine {
 					return finish(options, result, jobListener);
 				}
 				if (data == null || data.isEmpty()) {
+					result.setExhausted(true);
 					break;
 				}
 				Object next = data.getNextCheckpoint();
@@ -114,6 +115,7 @@ public class BatchEngine {
 
 				if (data.getRows().size() < options.getBatchSize()) {
 					// 不满一批说明已经是最后一批，省掉一次空查询
+					result.setExhausted(true);
 					break;
 				}
 			}
