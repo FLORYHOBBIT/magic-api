@@ -186,6 +186,48 @@ class UploadModuleScriptTest {
 	}
 
 	@Test
+	void readmeSoapAndSignExamplesRun() throws Exception {
+		server.respond(r -> r.path.startsWith("/ws")
+				? Response.xml(200, "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body>"
+				+ "<ns2:uploadResponse xmlns:ns2=\"http://ws.yb.gov/\"><return>{\"code\":\"0\",\"msg\":\"ok\"}</return></ns2:uploadResponse></soap:Body></soap:Envelope>")
+				: Response.json(200, "{\"code\":\"0\"}"));
+		MagicScriptContext context = new MagicScriptContext();
+		context.set("wsUrl", server.url("/ws/UploadService"));
+		context.set("url", server.url("/sign"));
+
+		// README 第 4 节 WebService 示例（字段名按 H2 返回的大写列名）
+		JobResult soap = (JobResult) ScriptManager.executeScript("import uploader\n"
+				+ "return uploader.job('yb-settle')\n"
+				+ "    .source('select id as SETTLE_ID, id * 10 as AMOUNT from report where id <= 3', 'SETTLE_ID')\n"
+				+ "    .soap({url: wsUrl, soapAction: 'upload', successField: 'return#code', successValues: '0', messageField: 'return#msg'})\n"
+				+ "    .body(batch => {\n"
+				+ "        var items = batch.rows.map(r => `<item><id>${r.SETTLE_ID}</id><amt>${r.AMOUNT}</amt></item>`).join('')\n"
+				+ "        return `<ns:upload xmlns:ns=\"http://ws.yb.gov/\"><orgCode>H001</orgCode><data><![CDATA[<list>${items}</list>]]></data></ns:upload>`\n"
+				+ "    })\n"
+				+ "    .run()", context);
+		assertThat(soap.getStatus()).as(soap.getMessage()).isEqualTo(JobStatus.SUCCESS);
+		assertThat(server.requests().get(0).body).contains("<item><id>1</id><amt>10</amt></item><item><id>2</id>");
+
+		// README 第 4 节签名示例
+		JobResult signed = (JobResult) ScriptManager.executeScript("import uploader\n"
+				+ "var appSecret = 'S1'\n"
+				+ "return uploader.job('signed').data([{a: 1}]).http({url: url})\n"
+				+ "    .body(batch => {\n"
+				+ "        var ts = '' + new Date().getTime()\n"
+				+ "        var body = uploader.json({orgCode: 'H001', timestamp: ts, list: batch.rows})\n"
+				+ "        batch.headers['X-Timestamp'] = ts\n"
+				+ "        batch.headers['X-Sign'] = uploader.hmacSha256(appSecret, body + ts)\n"
+				+ "        return body\n"
+				+ "    })\n"
+				+ "    .run()", context);
+		assertThat(signed.getStatus()).as(signed.getMessage()).isEqualTo(JobStatus.SUCCESS);
+		TestHttpServer.Request request = server.requests().get(1);
+		String ts = request.header("X-Timestamp");
+		assertThat(request.header("X-Sign")).isEqualTo(org.ssssssss.magicapi.upload.channel.SignFunctions.hmacSha256("S1", request.body + ts));
+		assertThat(MAPPER.readTree(request.body).get("list").get(0).get("a").asInt()).isEqualTo(1);
+	}
+
+	@Test
 	void signHelpersAndJson() {
 		assertThat(execute("import uploader; return uploader.sha256('abc')"))
 				.isEqualTo("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");

@@ -82,3 +82,18 @@ git push origin master
   `RequestInterceptor` / `AuthorizationInterceptor` / `ResultProvider` /
   `@MagicModule`+`DynamicModule` / `MagicResourceStorage` / `MagicDynamicRegistry`。
 - 尽量不改 `magic-api` 核心源码，以降低与上游合并冲突。
+
+
+## 7. 数据上传插件（magic-api-plugin-upload）
+
+fork 自研插件，使用说明见 `magic-api-plugins/magic-api-plugin-upload/README.md`。维护要点：
+
+- 对上游文件的改动只有 `magic-api-plugins/pom.xml` 中的一行 `<module>`，其余代码都在插件目录内。
+- 包结构：`engine`（分批、重试、失败策略，不涉及 I/O）、`store`（断点、锁、记录、失败批次）、`source`（数据来源）、
+  `channel`（HTTP/SOAP/文件/FTP/SFTP 通道）、`resource`（界面维护的上传通道）、`script`（uploader 脚本模块）、
+  `alert`（告警）、`service`（任务执行器）、`starter`（自动配置）；前端在 `src/console`（构建方式同 task 插件，需要 Node.js）。
+- 只构建并测试插件：`build.cmd -pl magic-api-plugins/magic-api-plugin-upload -am clean verify`。
+- 修改 `UploadSchema` 后重新生成手工建表脚本：
+  `build.cmd -pl magic-api-plugins/magic-api-plugin-upload -am verify -Dtest=SchemaSqlFilesTest -Dsurefire.failIfNoSpecifiedTests=false -Dupload.writeDdl=true`。
+- 数据库相关测试使用 H2 的 Oracle/SQL Server 兼容模式；H2 无法正确执行 SQLServer2005 方言的 offset 分页，该组合已从测试中排除，需在真实库上验证。
+- 新增依赖：`commons-net 3.9.0`（FTP）、`com.github.mwiede:jsch 0.2.16`（SFTP），仅在插件中引入。
