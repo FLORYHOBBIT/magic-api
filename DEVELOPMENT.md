@@ -57,19 +57,30 @@ mvnw -pl magic-api,magic-editor,magic-api-servlet/magic-api-servlet-javaee clean
 
 - `origin` = FLORYHOBBIT/magic-api（自己的 Fork）
 - `upstream` = ssssssss-team/magic-api（原作者，**push 地址已禁用**）
-- `master` 仅作上游纯净镜像，**不直接修改**。
+- `master` = 上游代码 + fork 自研内容（已合并 PR #1），**不直接修改、不直接推送**，只通过 PR 合并。
 - 所有开发在 `feature/**` 分支完成，经 PR 合并到 `master`。
-- **严禁向 upstream 推送**。
+- **严禁向 upstream 推送**，也不要向上游仓库发 PR（GitHub 在 fork 中创建 PR 时默认选上游仓库，注意改为 FLORYHOBBIT/magic-api）。
+- 本地 `master` 检出在主工作目录 `E:/orca/magic-api`；其他工作树中不能再检出 `master`，更新本地 master 请在该目录执行
+  `git merge --ff-only origin/master`。
 
 ### 同步上游更新
 
+`master` 已包含 fork 自己的提交，不能再用 `--ff-only` 快进到上游。同步也走分支 + PR：
+
 ```bash
 git fetch upstream --tags
-git checkout master
-git merge --ff-only upstream/master
-git push origin master
-# feature 分支再 rebase/merge master 跟进
+git fetch origin
+git switch -c sync/upstream-YYYYMMDD origin/master
+git merge upstream/master          # 有冲突时解决后 git add + git commit
+build.cmd                          # JDK17 全量 clean verify 必须通过
+git push -u origin sync/upstream-YYYYMMDD
+gh pr create --repo FLORYHOBBIT/magic-api --base master --head sync/upstream-YYYYMMDD
+# PR 的 CI 通过后合并；进行中的 feature 分支再 merge 最新的 origin/master 跟进
 ```
+
+减少冲突的约定：fork 的改动尽量放在独立模块（如 `magic-api-plugin-upload`）；对上游文件只做追加式的小改动
+（目前是父 POM 的 surefire 版本、`magic-api/pom.xml` 的 test 依赖、`magic-api-plugins/pom.xml` 的一行 module、`.gitignore`）。
+冲突通常只会出现在这几处 pom 中，保留双方内容即可。
 
 ## 5. CI
 
