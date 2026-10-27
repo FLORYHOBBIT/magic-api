@@ -1,0 +1,38 @@
+name: build
+
+# 守护主干：PR 合入 master / feature 推送时自动编译并运行测试
+on:
+  push:
+    branches:
+      - 'feature/**'
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 说明：本工程为多 JDK 混合工程。
+      # magic-api 核心、servlet-javaee 等模块使用 source/target=8；
+      # magic-api-servlet-jakarta 与 magic-api-plugin-springdoc 强制 source/target=17（Spring Boot 3 生态）。
+      # 因此全量构建必须使用 JDK 17（向下兼容 source=8 的模块）。
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: maven
+
+      # 部分前端相关插件（task、component）在构建时会执行 vite/npm build，需要 Node 环境。
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Build and verify
+        # -B 批处理模式；verify 会执行 compile + test
+        run: ./mvnw -B --no-transfer-progress clean verify
