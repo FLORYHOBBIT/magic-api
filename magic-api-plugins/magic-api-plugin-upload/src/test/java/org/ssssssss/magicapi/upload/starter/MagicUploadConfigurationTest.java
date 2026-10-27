@@ -25,6 +25,13 @@ class MagicUploadConfigurationTest {
 					.isEqualTo(MagicUploadConfiguration.PLUGIN_NAME);
 			assertThat(context).hasSingleBean(org.ssssssss.magicapi.upload.store.UploadStore.class);
 			assertThat(context).hasSingleBean(org.ssssssss.magicapi.upload.service.UploadJobRunner.class);
+			assertThat(context).hasSingleBean(org.ssssssss.magicapi.upload.script.UploadModule.class);
+			assertThat(context).hasSingleBean(org.ssssssss.magicapi.upload.resource.UploadChannelMagicResourceStorage.class);
+			assertThat(context).hasSingleBean(org.ssssssss.magicapi.upload.resource.UploadChannelMagicDynamicRegistry.class);
+			assertThat(context).hasSingleBean(org.ssssssss.magicapi.upload.alert.UploadAlertService.class);
+			assertThat(context.getBean(org.ssssssss.magicapi.upload.resource.UploadChannelEncryptor.class).isEnabled()).isFalse();
+			assertThat(context.getBean(MagicUploadConfiguration.class).plugin().getJavascriptFilename())
+					.isEqualTo("magic-upload.1.0.0.iife.js");
 		});
 	}
 
@@ -42,6 +49,28 @@ class MagicUploadConfigurationTest {
 			assertThat(properties.getRetryBackoff()).isEqualTo(Duration.ofSeconds(2));
 			assertThat(properties.getLockTimeout()).isEqualTo(Duration.ofMinutes(30));
 		});
+	}
+
+	@Test
+	void collectsCustomSignersNotifiersAndSecretKey() {
+		runner.withPropertyValues("magic-api.upload.secret-key=abc", "magic-api.upload.alert.webhook.url=http://127.0.0.1:1/hook")
+				.withBean("hisSigner", org.ssssssss.magicapi.upload.channel.UploadSigner.class, () -> new org.ssssssss.magicapi.upload.channel.UploadSigner() {
+					@Override
+					public String name() {
+						return "his";
+					}
+
+					@Override
+					public void sign(org.ssssssss.magicapi.upload.channel.SignContext context) {
+					}
+				})
+				.withBean("smsNotifier", org.ssssssss.magicapi.upload.alert.UploadAlertNotifier.class, () -> alert -> {
+				})
+				.run(context -> {
+					assertThat(context.getBean(org.ssssssss.magicapi.upload.resource.UploadChannelEncryptor.class).isEnabled()).isTrue();
+					assertThat(context.getBean(org.ssssssss.magicapi.upload.channel.ChannelFactory.class).signerNames()).containsExactly("his");
+					assertThat(context).hasNotFailed();
+				});
 	}
 
 	@Test

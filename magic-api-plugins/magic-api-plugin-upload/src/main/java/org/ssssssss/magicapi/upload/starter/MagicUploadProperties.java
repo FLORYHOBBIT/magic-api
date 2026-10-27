@@ -60,6 +60,128 @@ public class MagicUploadProperties {
 	 */
 	private boolean recordEmptyRuns = false;
 
+	private final Alert alert = new Alert();
+
+	public Alert getAlert() {
+		return alert;
+	}
+
+	/**
+	 * 告警配置，前缀 magic-api.upload.alert
+	 */
+	public static class Alert {
+
+		/**
+		 * 是否启用告警（关闭后日志告警也不再输出）
+		 */
+		private boolean enable = true;
+
+		/**
+		 * 医院名称，显示在告警标题中
+		 */
+		private String hospital;
+
+		/**
+		 * 同一任务同一类告警的静默时间
+		 */
+		private Duration silence = Duration.ofMinutes(10);
+
+		/**
+		 * 部分批次失败（SKIP 策略）时是否告警
+		 */
+		private boolean alertOnPartial = true;
+
+		private final Webhook webhook = new Webhook();
+
+		public boolean isEnable() {
+			return enable;
+		}
+
+		public void setEnable(boolean enable) {
+			this.enable = enable;
+		}
+
+		public String getHospital() {
+			return hospital;
+		}
+
+		public void setHospital(String hospital) {
+			this.hospital = hospital;
+		}
+
+		public Duration getSilence() {
+			return silence;
+		}
+
+		public void setSilence(Duration silence) {
+			this.silence = silence;
+		}
+
+		public boolean isAlertOnPartial() {
+			return alertOnPartial;
+		}
+
+		public void setAlertOnPartial(boolean alertOnPartial) {
+			this.alertOnPartial = alertOnPartial;
+		}
+
+		public Webhook getWebhook() {
+			return webhook;
+		}
+	}
+
+	/**
+	 * Webhook 告警，前缀 magic-api.upload.alert.webhook，配置 url 后启用
+	 */
+	public static class Webhook {
+
+		private String url;
+
+		/**
+		 * dingtalk、wecom、feishu、generic
+		 */
+		private String type = "generic";
+
+		/**
+		 * 钉钉、飞书机器人的加签密钥
+		 */
+		private String secret;
+
+		private Duration timeout = Duration.ofSeconds(5);
+
+		public String getUrl() {
+			return url;
+		}
+
+		public void setUrl(String url) {
+			this.url = url;
+		}
+
+		public String getType() {
+			return type;
+		}
+
+		public void setType(String type) {
+			this.type = type;
+		}
+
+		public String getSecret() {
+			return secret;
+		}
+
+		public void setSecret(String secret) {
+			this.secret = secret;
+		}
+
+		public Duration getTimeout() {
+			return timeout;
+		}
+
+		public void setTimeout(Duration timeout) {
+			this.timeout = timeout;
+		}
+	}
+
 	public boolean isRecordEmptyRuns() {
 		return recordEmptyRuns;
 	}

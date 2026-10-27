@@ -1,12 +1,9 @@
 package org.ssssssss.magicapi.upload.channel.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.http.*;
-import org.springframework.http.client.ClientHttpResponse;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
-import org.springframework.http.converter.ByteArrayHttpMessageConverter;
-import org.springframework.web.client.ResponseErrorHandler;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpHeaders;
+import org.ssssssss.magicapi.upload.channel.ChannelRequest;
+import org.ssssssss.magicapi.upload.channel.HttpSender;
 import org.ssssssss.magicapi.upload.channel.SignContext;
 import org.ssssssss.magicapi.upload.engine.SendResult;
 import org.ssssssss.magicapi.upload.engine.UploadBatch;
@@ -14,10 +11,10 @@ import org.ssssssss.magicapi.upload.engine.UploadChannel;
 import org.ssssssss.magicapi.upload.store.PayloadCodec;
 
 import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * HTTP 上传通道，请求体为 JSON 或表单
@@ -28,31 +25,13 @@ public class HttpUploadChannel implements UploadChannel {
 
 	private static final ObjectMapper MAPPER = new ObjectMapper();
 
-	private static final ResponseErrorHandler NO_ERROR = new ResponseErrorHandler() {
-		@Override
-		public boolean hasError(ClientHttpResponse response) {
-			return false;
-		}
-
-		@Override
-		public void handleError(ClientHttpResponse response) {
-		}
-	};
-
 	private final HttpChannelConfig config;
 
-	private final RestTemplate restTemplate;
+	private final HttpSender sender;
 
 	public HttpUploadChannel(HttpChannelConfig config) {
 		this.config = Objects.requireNonNull(config, "config");
-		SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-		factory.setConnectTimeout((int) config.getConnectTimeout().toMillis());
-		factory.setReadTimeout((int) config.getReadTimeout().toMillis());
-		// 流式发送时，HttpURLConnection 遇到 401 会抛 HttpRetryException，导致"未授权"被误判为网络错误而重试
-		factory.setOutputStreaming(false);
-		this.restTemplate = new RestTemplate(factory);
-		this.restTemplate.setMessageConverters(Collections.singletonList(new ByteArrayHttpMessageConverter()));
-		this.restTemplate.setErrorHandler(NO_ERROR);
+		this.sender = new HttpSender(config.getConnectTimeout(), config.getReadTimeout());
 	}
 
 	public HttpChannelConfig getConfig() {
@@ -61,12 +40,12 @@ public class HttpUploadChannel implements UploadChannel {
 
 	@Override
 	public SendResult send(UploadBatch batch) throws Exception {
-		Object body = config.getBodyBuilder().build(batch);
+		Map<String, String> headers = new LinkedHashMap<>(config.getHeaders());
+		Map<String, String> queryParams = new LinkedHashMap<>(config.getQueryParams());
+		Object body = ChannelRequest.unwrap(config.getBodyBuilder().build(batch), headers, queryParams);
 		boolean form = HttpChannelConfig.CONTENT_FORM.equals(config.getContentType());
 		String payload = body instanceof CharSequence ? body.toString() : (form ? toForm(body) : toJson(body));
 
-		Map<String, String> headers = new LinkedHashMap<>(config.getHeaders());
-		Map<String, String> queryParams = new LinkedHashMap<>(config.getQueryParams());
 		if (config.getSigner() != null) {
 			config.getSigner().sign(new SignContext(config.getMethod(), config.getUrl(), headers, queryParams, payload, batch));
 		}
@@ -78,28 +57,15 @@ public class HttpUploadChannel implements UploadChannel {
 					? "application/x-www-form-urlencoded;charset=UTF-8"
 					: "application/json;charset=UTF-8");
 		}
-		RequestEntity<byte[]> request = new RequestEntity<>(payload.getBytes(StandardCharsets.UTF_8), httpHeaders,
-				HttpMethod.valueOf(config.getMethod()), buildUri(config.getUrl(), queryParams));
-		ResponseEntity<byte[]> response = restTemplate.exchange(request, byte[].class);
-		String text = decode(response);
-		return config.getResponseRule().evaluate(response.getStatusCodeValue(), text, new JsonFieldReader(text));
+		HttpSender.Response response = sender.send(config.getMethod(), buildUri(config.getUrl(), queryParams), httpHeaders, payload);
+		return config.getResponseRule().evaluate(response.getStatus(), response.getBody(), new JsonFieldReader(response.getBody()));
 	}
 
 	static URI buildUri(String url, Map<String, String> queryParams) {
-		if (queryParams.isEmpty()) {
-			return URI.create(url);
-		}
-		StringBuilder sb = new StringBuilder(url);
-		boolean hasQuery = url.indexOf('?') >= 0;
-		for (Map.Entry<String, String> entry : queryParams.entrySet()) {
-			sb.append(hasQuery ? '&' : '?');
-			hasQuery = true;
-			sb.append(encode(entry.getKey())).append('=').append(encode(entry.getValue()));
-		}
-		return URI.create(sb.toString());
+		return HttpSender.buildUri(url, queryParams);
 	}
 
-	static String toJson(Object body) throws Exception {
+	public static String toJson(Object body) throws Exception {
 		return MAPPER.writeValueAsString(PayloadCodec.normalize(body));
 	}
 
@@ -121,26 +87,8 @@ public class HttpUploadChannel implements UploadChannel {
 			} else {
 				text = value.toString();
 			}
-			sb.append(encode(String.valueOf(entry.getKey()))).append('=').append(encode(text));
+			sb.append(HttpSender.encode(String.valueOf(entry.getKey()))).append('=').append(HttpSender.encode(text));
 		}
 		return sb.toString();
-	}
-
-	private static String encode(String value) {
-		try {
-			return URLEncoder.encode(value == null ? "" : value, "UTF-8");
-		} catch (java.io.UnsupportedEncodingException e) {
-			throw new IllegalStateException(e);
-		}
-	}
-
-	private static String decode(ResponseEntity<byte[]> response) {
-		byte[] bytes = response.getBody();
-		if (bytes == null) {
-			return "";
-		}
-		MediaType type = response.getHeaders().getContentType();
-		Charset charset = type == null || type.getCharset() == null ? StandardCharsets.UTF_8 : type.getCharset();
-		return new String(bytes, charset);
 	}
 }

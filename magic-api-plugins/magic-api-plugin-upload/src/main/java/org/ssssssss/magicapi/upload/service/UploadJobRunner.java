@@ -39,6 +39,15 @@ public class UploadJobRunner {
 		this.recordEmptyRuns = recordEmptyRuns;
 	}
 
+	private org.ssssssss.magicapi.upload.alert.UploadAlertService alertService;
+
+	/**
+	 * 任务失败、部分失败、补传失败时告警
+	 */
+	public void setAlertService(org.ssssssss.magicapi.upload.alert.UploadAlertService alertService) {
+		this.alertService = alertService;
+	}
+
 	public UploadStore getStore() {
 		return store;
 	}
@@ -62,8 +71,12 @@ public class UploadJobRunner {
 		try {
 			Object checkpoint = store.loadCheckpoint(jobName);
 			String recordId = UUID.randomUUID().toString().replace("-", "");
+			List<JobListener> others = new java.util.ArrayList<>(extraListeners == null ? Collections.<JobListener>emptyList() : extraListeners);
+			if (alertService != null) {
+				others.add(alertService.listener());
+			}
 			JobListener listener = new CompositeJobListener(
-					new StoreJobListener(store, recordId, owner, lockTimeout, recordEmptyRuns), extraListeners);
+					new StoreJobListener(store, recordId, owner, lockTimeout, recordEmptyRuns), others);
 			JobResult result = engine.run(options, source, channel, checkpoint, listener);
 			if (!source.isIncremental() && result.isExhausted() && result.getStatus() != JobStatus.FAILED) {
 				// offset 分页、列表来源：本轮数据已全部处理，下次从头开始
@@ -119,6 +132,13 @@ public class UploadJobRunner {
 				store.refreshLock(lockName, owner, lockTimeout);
 			}
 			logger.info("上传任务[{}]补传结束: {}", jobName, result);
+			if (alertService != null) {
+				try {
+					alertService.retryEnded(result);
+				} catch (Exception e) {
+					logger.warn("上传任务[{}]补传告警失败", jobName, e);
+				}
+			}
 			return result;
 		} finally {
 			try {
