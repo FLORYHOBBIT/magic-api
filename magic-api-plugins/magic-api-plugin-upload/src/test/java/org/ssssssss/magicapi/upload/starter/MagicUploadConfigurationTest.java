@@ -23,6 +23,8 @@ class MagicUploadConfigurationTest {
 			assertThat(properties.isInitSchema()).isTrue();
 			assertThat(context.getBean(MagicUploadConfiguration.class).plugin().getName())
 					.isEqualTo(MagicUploadConfiguration.PLUGIN_NAME);
+			assertThat(context).hasSingleBean(org.ssssssss.magicapi.upload.store.UploadStore.class);
+			assertThat(context).hasSingleBean(org.ssssssss.magicapi.upload.service.UploadJobRunner.class);
 		});
 	}
 

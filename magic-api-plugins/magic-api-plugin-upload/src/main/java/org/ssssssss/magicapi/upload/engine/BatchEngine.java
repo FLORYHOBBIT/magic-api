@@ -76,7 +76,7 @@ public class BatchEngine {
 				}
 				index++;
 				UploadBatch batch = new UploadBatch(jobName, index, data.getRows(), checkpoint, next);
-				BatchResult batchResult = sendWithRetry(options, channel, batch);
+				BatchResult batchResult = sendBatch(options, channel, batch);
 				result.addBatch(batchResult);
 
 				if (batchResult.isSuccess()) {
@@ -127,7 +127,10 @@ public class BatchEngine {
 		return finish(options, result, jobListener);
 	}
 
-	private BatchResult sendWithRetry(JobOptions options, UploadChannel channel, UploadBatch batch) throws InterruptedException {
+	/**
+	 * 发送单个批次，失败时按任务参数重试
+	 */
+	public BatchResult sendBatch(JobOptions options, UploadChannel channel, UploadBatch batch) throws InterruptedException {
 		long start = System.currentTimeMillis();
 		int maxAttempts = options.getRetry() + 1;
 		SendResult last = null;

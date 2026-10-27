@@ -55,6 +55,19 @@ public class MagicUploadProperties {
 	 */
 	private Duration lockTimeout = Duration.ofHours(2);
 
+	/**
+	 * 没有数据可上传的执行是否也写执行记录。秒级、分钟级任务建议保持 false。
+	 */
+	private boolean recordEmptyRuns = false;
+
+	public boolean isRecordEmptyRuns() {
+		return recordEmptyRuns;
+	}
+
+	public void setRecordEmptyRuns(boolean recordEmptyRuns) {
+		this.recordEmptyRuns = recordEmptyRuns;
+	}
+
 	public boolean isEnable() {
 		return enable;
 	}
