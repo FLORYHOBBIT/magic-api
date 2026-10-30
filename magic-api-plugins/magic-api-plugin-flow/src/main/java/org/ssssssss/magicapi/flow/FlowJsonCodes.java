@@ -32,4 +32,20 @@ public interface FlowJsonCodes {
 	JsonCode FLOW_EDGE_DUPLICATE = new JsonCode(5012, "节点「%s」有多条%s连线，只能保留一条");
 
 	JsonCode FLOW_NODE_CONFIG_INVALID = new JsonCode(5013, "节点「%s」的配置项「%s」不正确：%s");
+
+	JsonCode FLOW_TRIGGER_POSITION = new JsonCode(5014, "触发节点「%s」必须是起始节点，不能有入线");
+
+	JsonCode FLOW_VARIABLE_MISSING = new JsonCode(5015, "差异项 var.%s 没有配置，请在「集成配置 → 差异项」中填写");
+
+	JsonCode FLOW_VARIABLE_INVALID = new JsonCode(5016, "差异项名称只能包含中文、字母、数字、下划线、横线和点：%s");
+
+	JsonCode FLOW_NOT_TIMER = new JsonCode(5017, "流程「%s」不是定时流程");
+
+	JsonCode FLOW_PACKAGE_INVALID = new JsonCode(5018, "配置包不正确：%s");
+
+	JsonCode FLOW_TEMPLATE_NOT_FOUND = new JsonCode(5019, "找不到场景模板：%s");
+
+	JsonCode FLOW_HTTP_CONFLICT = new JsonCode(5020, "HTTP 地址 %s 已被其他接口或流程占用");
+
+	JsonCode FLOW_SOAP_CONFLICT = new JsonCode(5021, "WebService %s 的方法 %s 已被流程「%s」使用");
 }

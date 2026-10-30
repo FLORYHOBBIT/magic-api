@@ -28,7 +28,12 @@
             <artifactId>spring-boot-configuration-processor</artifactId>
             <optional>true</optional>
         </dependency>
-
+        <!-- 外部连接（上传通道）、分批引擎、断点与运行记录 -->
+        <dependency>
+            <groupId>org.ssssssss</groupId>
+            <artifactId>magic-api-plugin-upload</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- 测试 -->
         <dependency>
             <groupId>org.ssssssss</groupId>

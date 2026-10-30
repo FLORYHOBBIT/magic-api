@@ -8,6 +8,7 @@ import org.ssssssss.magicapi.core.exception.InvalidArgumentException;
 import org.ssssssss.magicapi.flow.model.FlowDefinition;
 import org.ssssssss.magicapi.flow.model.FlowDefinitions;
 import org.ssssssss.magicapi.flow.model.FlowInfo;
+import org.ssssssss.magicapi.flow.support.FlowVariables;
 import org.ssssssss.script.parsing.ast.literal.BooleanLiteral;
 
 import java.util.*;
@@ -35,6 +36,8 @@ public class FlowEngine {
 
 	private int maxSteps = 10000;
 
+	private FlowVariables variables;
+
 	public FlowEngine(Collection<? extends FlowNodeHandler> handlers) {
 		for (FlowNodeHandler handler : handlers) {
 			// 排在前面的优先，便于项目用同名类型覆盖内置节点
@@ -46,8 +49,21 @@ public class FlowEngine {
 		this.maxSteps = maxSteps;
 	}
 
+	public void setVariables(FlowVariables variables) {
+		this.variables = variables;
+	}
+
+	public FlowVariables getVariables() {
+		return variables;
+	}
+
 	public Set<String> types() {
 		return Collections.unmodifiableSet(handlers.keySet());
+	}
+
+	public boolean isTrigger(String type) {
+		FlowNodeHandler handler = handlers.get(type);
+		return handler != null && handler.trigger();
 	}
 
 	public FlowResult run(FlowInfo info, Map<String, Object> input, boolean debug) {
@@ -70,7 +86,6 @@ public class FlowEngine {
 				InvalidArgumentException error = new InvalidArgumentException(FLOW_CYCLE_DETECTED.format(maxSteps, label(current)));
 				return FlowResult.failure(current.getId(), error, execution.getTrace(), System.currentTimeMillis() - begin);
 			}
-			FlowNodeContext context = new FlowNodeContext(current, execution);
 			FlowTrace trace = new FlowTrace();
 			trace.setNodeId(current.getId());
 			trace.setName(current.getName());
@@ -79,6 +94,7 @@ public class FlowEngine {
 			long nodeBegin = System.currentTimeMillis();
 			FlowDefinition.Node next;
 			try {
+				FlowNodeContext context = new FlowNodeContext(current, execution, variables);
 				Object output = handlers.get(current.getType()).execute(context);
 				execution.output(current, output);
 				last = output;
@@ -87,19 +103,30 @@ public class FlowEngine {
 			} catch (Throwable e) {
 				trace.setSuccess(false);
 				trace.setError(message(e));
+				Object failedOutput = null;
+				if (e instanceof FlowNodeException) {
+					failedOutput = ((FlowNodeException) e).getOutput();
+					execution.output(current, failedOutput);
+					trace.setOutput(FlowTrace.preview(failedOutput));
+				}
 				String failedId = current.getId();
 				FlowDefinition.Edge failure = definition.getEdges().stream()
 						.filter(it -> failedId.equals(it.getSource()) && it.isFailure())
 						.findFirst().orElse(null);
 				if (failure == null) {
 					trace.setDuration(System.currentTimeMillis() - nodeBegin);
-					logger.warn("流程「{}」节点「{}」执行失败：{}", execution.getFlowName(), label(current), trace.getError(), e);
+					if (e instanceof FlowNodeException || e instanceof InvalidArgumentException) {
+						logger.warn("流程「{}」节点「{}」执行失败：{}", execution.getFlowName(), label(current), trace.getError());
+					} else {
+						logger.warn("流程「{}」节点「{}」执行失败：{}", execution.getFlowName(), label(current), trace.getError(), e);
+					}
 					return FlowResult.failure(current.getId(), e, execution.getTrace(), System.currentTimeMillis() - begin);
 				}
 				Map<String, Object> error = new LinkedHashMap<>();
 				error.put("node", current.getId());
 				error.put("name", label(current));
 				error.put("message", trace.getError());
+				error.put("output", failedOutput);
 				execution.getVariables().put("error", error);
 				next = definition.findNode(failure.getTarget());
 			}
@@ -112,7 +139,7 @@ public class FlowEngine {
 	}
 
 	/**
-	 * 执行前检查：节点类型都受支持、配置完整、起始节点唯一
+	 * 执行前检查：节点类型都受支持、配置完整、起始节点唯一、触发节点只能是起始节点
 	 */
 	public FlowDefinition.Node prepare(FlowDefinition definition) {
 		FlowDefinitions.validate(definition);
@@ -120,14 +147,17 @@ public class FlowEngine {
 			throw new InvalidArgumentException(FLOW_START_NODE_INVALID.format("没有节点"));
 		}
 		FlowExecution probe = new FlowExecution(definition, null, null, false);
+		Set<String> targets = definition.getEdges().stream().map(FlowDefinition.Edge::getTarget).collect(Collectors.toSet());
 		for (FlowDefinition.Node node : definition.getNodes()) {
 			FlowNodeHandler handler = handlers.get(node.getType());
 			if (handler == null) {
 				throw new InvalidArgumentException(FLOW_NODE_TYPE_UNKNOWN.format(label(node), node.getType()));
 			}
+			if (handler.trigger() && targets.contains(node.getId())) {
+				throw new InvalidArgumentException(FLOW_TRIGGER_POSITION.format(label(node)));
+			}
 			handler.check(new FlowNodeContext(node, probe));
 		}
-		Set<String> targets = definition.getEdges().stream().map(FlowDefinition.Edge::getTarget).collect(Collectors.toSet());
 		List<FlowDefinition.Node> starts = definition.getNodes().stream()
 				.filter(it -> !targets.contains(it.getId()))
 				.collect(Collectors.toList());
@@ -136,6 +166,17 @@ public class FlowEngine {
 			throw new InvalidArgumentException(FLOW_START_NODE_INVALID.format(detail));
 		}
 		return starts.get(0);
+	}
+
+	/**
+	 * 起始节点（不检查配置），没有或不唯一时返回 null
+	 */
+	public static FlowDefinition.Node startNode(FlowDefinition definition) {
+		Set<String> targets = definition.getEdges().stream().map(FlowDefinition.Edge::getTarget).collect(Collectors.toSet());
+		List<FlowDefinition.Node> starts = definition.getNodes().stream()
+				.filter(it -> !targets.contains(it.getId()))
+				.collect(Collectors.toList());
+		return starts.size() == 1 ? starts.get(0) : null;
 	}
 
 	private FlowDefinition.Node chooseNext(FlowDefinition definition, FlowDefinition.Node current, FlowNodeContext context) {
@@ -168,7 +209,7 @@ public class FlowEngine {
 	/**
 	 * 给实施人员看的错误信息：外层说明 + 根因（如数据库报错）
 	 */
-	static String message(Throwable e) {
+	public static String message(Throwable e) {
 		if (e == null) {
 			return null;
 		}

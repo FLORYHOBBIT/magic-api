@@ -1,8 +1,7 @@
 package org.ssssssss.magicapi.flow.engine;
 
 import org.ssssssss.magicapi.flow.model.FlowDefinition;
-import org.ssssssss.magicapi.utils.ScriptManager;
-import org.ssssssss.script.MagicScriptContext;
+import org.ssssssss.magicapi.flow.support.FlowScripts;
 
 import java.util.*;
 import java.util.regex.Pattern;
@@ -106,18 +105,12 @@ public class FlowExecution {
 		return IDENTIFIER.matcher(id).matches() && !RESERVED.contains(id);
 	}
 
-	Object evaluate(String expression, String scriptName) {
-		return evaluate(expression, null, scriptName);
-	}
-
 	Object evaluate(String expression, Map<String, Object> extra, String scriptName) {
 		Map<String, Object> vars = variables;
 		if (extra != null && !extra.isEmpty()) {
 			vars = new LinkedHashMap<>(variables);
 			vars.putAll(extra);
 		}
-		MagicScriptContext context = new MagicScriptContext(vars);
-		context.setScriptName(scriptName);
-		return ScriptManager.executeExpression(expression, context);
+		return FlowScripts.evaluate(expression, vars, scriptName);
 	}
 }

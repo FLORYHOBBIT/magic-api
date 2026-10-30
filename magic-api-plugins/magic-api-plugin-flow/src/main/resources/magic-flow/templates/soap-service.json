@@ -1,0 +1,29 @@
+{
+  "id": "soap-service",
+  "name": "对外 WebService 服务",
+  "description": "外部系统调用 WebService 方法，参数为 XML 字符串：解析请求 XML → 查库 → 按模板生成响应 XML。",
+  "params": [
+    {"key": "service", "label": "服务名", "default": "HisService"},
+    {"key": "operation", "label": "方法名", "default": "queryPatient"},
+    {"key": "sql", "label": "查询 SQL（请求字段用 #{req.字段名}）", "default": "select patient_id, name, sex from his_patient where patient_id = #{req.patientId}", "multiline": true},
+    {"key": "template", "label": "响应 XML 模板", "default": "<response><code>0</code><message>success</message>{{#each q as r}}<patient><id>{{r.patient_id}}</id><name>{{r.name}}</name><sex>{{r.sex}}</sex></patient>{{/each}}</response>", "multiline": true}
+  ],
+  "definition": {
+    "nodes": [
+      {"id": "start", "type": "soap", "name": "WebService 请求", "config": {"service": "%{service}", "operation": "%{operation}", "params": "message"}, "ui": {"x": 60, "y": 120}},
+      {"id": "req", "type": "xml", "name": "解析请求", "config": {"action": "parse", "source": "input.message", "path": "request"}, "ui": {"x": 280, "y": 120}},
+      {"id": "q", "type": "query", "name": "查询", "config": {"sql": "%{sql}"}, "ui": {"x": 500, "y": 120}},
+      {"id": "resp", "type": "template", "name": "生成响应", "config": {"format": "xml", "template": "%{template}"}, "ui": {"x": 720, "y": 120}},
+      {"id": "end", "type": "return", "name": "返回", "config": {"value": "resp"}, "ui": {"x": 940, "y": 120}},
+      {"id": "fail", "type": "return", "name": "返回错误", "config": {"value": "'<response><code>-1</code><message>' + error.message + '</message></response>'"}, "ui": {"x": 720, "y": 280}}
+    ],
+    "edges": [
+      {"source": "start", "target": "req"},
+      {"source": "req", "target": "q"},
+      {"source": "req", "target": "fail", "condition": "failure"},
+      {"source": "q", "target": "resp"},
+      {"source": "q", "target": "fail", "condition": "failure"},
+      {"source": "resp", "target": "end"}
+    ]
+  }
+}
