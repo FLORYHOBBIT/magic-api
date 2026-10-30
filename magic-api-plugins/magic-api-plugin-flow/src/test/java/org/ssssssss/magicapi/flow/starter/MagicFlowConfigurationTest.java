@@ -24,7 +24,7 @@ class MagicFlowConfigurationTest {
 			assertThat(context).hasSingleBean(FlowMagicDynamicRegistry.class);
 			assertThat(context.getBean(org.ssssssss.magicapi.flow.engine.FlowEngine.class).types())
 					.containsExactlyInAnyOrder("query", "write", "save", "script", "return", "map", "nest", "validate",
-							"template", "xml", "json", "call", "http", "soap", "timer", "msg");
+							"template", "xml", "json", "call", "proc", "http", "soap", "timer", "msg");
 			assertThat(context.getBean(MagicFlowConfiguration.class).plugin().getJavascriptFilename())
 					.isEqualTo("magic-flow.1.0.0.iife.js");
 		});

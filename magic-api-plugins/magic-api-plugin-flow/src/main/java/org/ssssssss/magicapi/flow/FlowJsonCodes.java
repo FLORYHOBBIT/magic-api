@@ -54,4 +54,6 @@ public interface FlowJsonCodes {
 	JsonCode FLOW_MSG_DISABLED = new JsonCode(5023, "消息中心没有启用（magic-api.flow.msg.enable）");
 
 	JsonCode FLOW_MSG_NOT_FOUND = new JsonCode(5024, "找不到消息：%s");
+
+	JsonCode FLOW_PROC_FAILED = new JsonCode(5025, "%s");
 }

@@ -20,6 +20,9 @@ import org.ssssssss.magicapi.flow.model.FlowDefinition;
 import org.ssssssss.magicapi.flow.model.FlowDefinitions;
 import org.ssssssss.magicapi.flow.model.FlowInfo;
 import org.ssssssss.magicapi.flow.msg.*;
+import org.ssssssss.magicapi.flow.proc.ProcException;
+import org.ssssssss.magicapi.flow.proc.ProcService;
+import org.ssssssss.magicapi.flow.proc.ProcSpec;
 import org.ssssssss.magicapi.flow.service.*;
 import org.ssssssss.magicapi.flow.support.FlowJson;
 import org.ssssssss.magicapi.flow.support.FlowVariables;
@@ -378,6 +381,45 @@ public class MagicFlowController extends MagicController implements MagicExcepti
 		return services.msgCenter;
 	}
 
+	// ------------------------------------------------------------------ 存储过程
+
+	/**
+	 * 读取过程参数定义（ALL_ARGUMENTS），供「调用存储过程」节点的「读取参数」使用
+	 */
+	@GetMapping("/flow/proc/arguments")
+	@ResponseBody
+	public JsonBean<List<List<Map<String, Object>>>> procArguments(String datasource, String name) {
+		isTrue(services.procService != null, FLOW_PROC_FAILED.format("没有可用的 db 模块，请确认已配置数据源"));
+		try {
+			return new JsonBean<>(services.procService.arguments(StringUtils.trimToNull(datasource), StringUtils.trimToEmpty(name), true));
+		} catch (ProcException | IllegalArgumentException | IllegalStateException e) {
+			throw new InvalidArgumentException(FLOW_PROC_FAILED.format(e.getMessage()));
+		}
+	}
+
+	/**
+	 * 按节点配置生成调用语句（不执行），供编辑器预览与校验
+	 */
+	@PostMapping("/flow/proc/preview")
+	@ResponseBody
+	public JsonBean<String> procPreview(@RequestBody Map<String, Object> config) {
+		try {
+			return new JsonBean<>(ProcSpec.from(config, new ProcSpec.Values() {
+				@Override
+				public boolean has(Map<String, Object> row) {
+					return row.get("value") != null && !row.get("value").toString().trim().isEmpty();
+				}
+
+				@Override
+				public Object get(Map<String, Object> row) {
+					return null;
+				}
+			}).build().getSql());
+		} catch (IllegalArgumentException e) {
+			throw new InvalidArgumentException(FLOW_PROC_FAILED.format(e.getMessage()));
+		}
+	}
+
 	private static List<String> split(String ids) {
 		List<String> result = new ArrayList<>();
 		if (ids != null) {
@@ -469,6 +511,8 @@ public class MagicFlowController extends MagicController implements MagicExcepti
 
 		final MsgDispatcher msgDispatcher;
 
+		final ProcService procService;
+
 		public Services(FlowEngine engine, FlowRunner runner, FlowJobService jobService, FlowVariables variables,
 						FlowTemplates templates, FlowPackageService packages) {
 			this(engine, runner, jobService, variables, templates, packages, null, null);
@@ -476,6 +520,12 @@ public class MagicFlowController extends MagicController implements MagicExcepti
 
 		public Services(FlowEngine engine, FlowRunner runner, FlowJobService jobService, FlowVariables variables,
 						FlowTemplates templates, FlowPackageService packages, MsgCenter msgCenter, MsgDispatcher msgDispatcher) {
+			this(engine, runner, jobService, variables, templates, packages, msgCenter, msgDispatcher, null);
+		}
+
+		public Services(FlowEngine engine, FlowRunner runner, FlowJobService jobService, FlowVariables variables,
+						FlowTemplates templates, FlowPackageService packages, MsgCenter msgCenter, MsgDispatcher msgDispatcher,
+						ProcService procService) {
 			this.engine = engine;
 			this.runner = runner;
 			this.jobService = jobService;
@@ -484,6 +534,7 @@ public class MagicFlowController extends MagicController implements MagicExcepti
 			this.packages = packages;
 			this.msgCenter = msgCenter;
 			this.msgDispatcher = msgDispatcher;
+			this.procService = procService;
 		}
 	}
 }

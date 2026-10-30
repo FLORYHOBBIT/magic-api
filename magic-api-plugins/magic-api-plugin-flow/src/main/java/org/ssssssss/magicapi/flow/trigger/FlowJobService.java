@@ -205,7 +205,7 @@ public class FlowJobService {
 		}
 	}
 
-	static Map<String, Object> convertCase(Map<String, Object> row, String columnCase) {
+	public static Map<String, Object> convertCase(Map<String, Object> row, String columnCase) {
 		if ("raw".equals(columnCase)) {
 			return new LinkedHashMap<>(row);
 		}

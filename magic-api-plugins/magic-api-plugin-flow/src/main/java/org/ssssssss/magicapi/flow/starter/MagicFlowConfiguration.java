@@ -23,6 +23,9 @@ import org.ssssssss.magicapi.flow.engine.FlowNodeHandler;
 import org.ssssssss.magicapi.flow.engine.node.*;
 import org.ssssssss.magicapi.flow.msg.JdbcMsgStore;
 import org.ssssssss.magicapi.flow.msg.MsgCenter;
+import org.ssssssss.magicapi.flow.proc.ProcModule;
+import org.ssssssss.magicapi.flow.proc.ProcNodeHandler;
+import org.ssssssss.magicapi.flow.proc.ProcService;
 import org.ssssssss.magicapi.flow.msg.MsgDispatcher;
 import org.ssssssss.magicapi.flow.msg.MsgTriggerNodeHandler;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -97,6 +100,21 @@ public class MagicFlowConfiguration implements MagicPluginConfiguration {
 	@Bean
 	public SaveNodeHandler flowSaveNodeHandler(ObjectProvider<SQLModule> sqlModule) {
 		return new SaveNodeHandler(sqlModule.getIfAvailable());
+	}
+
+	@Bean
+	public ProcService flowProcService(ObjectProvider<SQLModule> sqlModule) {
+		return new ProcService(sqlModule::getIfAvailable);
+	}
+
+	@Bean
+	public ProcNodeHandler flowProcNodeHandler(ProcService procService) {
+		return new ProcNodeHandler(procService);
+	}
+
+	@Bean
+	public ProcModule flowProcModule(ProcService procService) {
+		return new ProcModule(procService);
 	}
 
 	@Bean
@@ -292,9 +310,10 @@ public class MagicFlowConfiguration implements MagicPluginConfiguration {
 	@Bean
 	public MagicFlowController.Services flowControllerServices(FlowEngine engine, FlowRunner runner, FlowJobService jobService,
 															   FlowVariables variables, FlowTemplates templates, FlowPackageService packages,
-															   ObjectProvider<MsgCenter> msgCenter, ObjectProvider<MsgDispatcher> msgDispatcher) {
+															   ObjectProvider<MsgCenter> msgCenter, ObjectProvider<MsgDispatcher> msgDispatcher,
+															   ProcService procService) {
 		return new MagicFlowController.Services(engine, runner, jobService, variables, templates, packages,
-				msgCenter.getIfAvailable(), msgDispatcher.getIfAvailable());
+				msgCenter.getIfAvailable(), msgDispatcher.getIfAvailable(), procService);
 	}
 
 	@Override
