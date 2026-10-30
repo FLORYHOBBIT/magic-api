@@ -20,6 +20,17 @@ REM JVM options
 set "JAVA_OPTS=-Xms512m -Xmx1024m"
 REM Seconds to wait for the port to open before giving up
 set "START_TIMEOUT=120"
+
+REM ---- SkyWalking APM (optional) ----
+REM Set SW_ENABLE=1 to attach the SkyWalking Java Agent at startup.
+REM Leave SW_ENABLE empty (default) to start WITHOUT SkyWalking.
+REM The agent jar is NOT bundled; download it from the SkyWalking release
+REM package. By default we look for skywalking-agent\skywalking-agent.jar
+REM next to this script; override with env var SW_AGENT (full path).
+REM Service name shown in the SkyWalking UI (keep it unique and stable)
+if not defined SW_SERVICE_NAME set "SW_SERVICE_NAME=magic-api-server"
+REM SkyWalking OAP backend (gRPC), must be reachable from this host
+if not defined SW_BACKEND set "SW_BACKEND=127.0.0.1:11800"
 REM -------------------------------------------------------
 
 if not "%~1"=="" set "SERVER_PORT=%~1"
@@ -39,6 +50,22 @@ cd /d "%APP_HOME%"
 set "APP_JAR=%APP_HOME%\magic-api-server.jar"
 set "PID_FILE=%APP_HOME%\magic-api.pid"
 set "JAVAW=%JDK17_HOME%\bin\javaw.exe"
+
+REM ---- build SkyWalking agent options (only when SW_ENABLE=1) ----
+set "SW_OPTS="
+if not defined SW_AGENT set "SW_AGENT=%APP_HOME%\skywalking-agent\skywalking-agent.jar"
+if "%SW_ENABLE%"=="1" (
+    if exist "!SW_AGENT!" (
+        set SW_OPTS=-javaagent:"!SW_AGENT!" -Dskywalking.agent.service_name=!SW_SERVICE_NAME! -Dskywalking.collector.backend_service=!SW_BACKEND!
+        echo [INFO] SkyWalking: ENABLED
+        echo [INFO]   agent  : !SW_AGENT!
+        echo [INFO]   service: !SW_SERVICE_NAME!
+        echo [INFO]   backend: !SW_BACKEND!
+    ) else (
+        echo [WARN] SW_ENABLE=1 but agent jar not found: !SW_AGENT!
+        echo [WARN]        Starting WITHOUT SkyWalking.
+    )
+)
 
 if not exist "%JAVAW%" (
     echo [ERROR] JDK17 not found: %JDK17_HOME%
@@ -76,7 +103,7 @@ echo [INFO] Port     : %SERVER_PORT%
 echo [INFO] Home     : %APP_HOME%
 echo [INFO] Starting...
 
-start "magic-api" /b "%JAVAW%" %JAVA_OPTS% -Dfile.encoding=UTF-8 -jar "%APP_JAR%" --server.port=%SERVER_PORT% >>"%APP_HOME%\logs\console.log" 2>&1
+start "magic-api" /b "%JAVAW%" %JAVA_OPTS% %SW_OPTS% -Dfile.encoding=UTF-8 -jar "%APP_JAR%" --server.port=%SERVER_PORT% >>"%APP_HOME%\logs\console.log" 2>&1
 
 REM ---- wait until the port is listening ----
 set /a WAITED=0
