@@ -45,7 +45,7 @@ class FlowPackageTest extends AbstractFlowTest {
 	void builtInTemplatesProduceValidFlows() throws Exception {
 		MockMvc mvc = mvc();
 		JsonNode list = data(mvc.perform(get("/magic/web/flow/templates")));
-		assertThat(list.size()).isEqualTo(4);
+		assertThat(list.size()).isEqualTo(6);
 		for (JsonNode template : list) {
 			assertThat(template.has("definition")).isFalse();
 			assertThat(template.get("params").size()).isGreaterThan(0);

@@ -21,7 +21,7 @@ import static org.ssssssss.magicapi.flow.FlowJsonCodes.FLOW_TEMPLATE_NOT_FOUND;
  */
 public class FlowTemplates {
 
-	public static final List<String> BUILT_IN = Collections.unmodifiableList(Arrays.asList("http-query", "soap-service", "timer-upload", "table-sync"));
+	public static final List<String> BUILT_IN = Collections.unmodifiableList(Arrays.asList("http-query", "soap-service", "timer-upload", "table-sync", "msg-query", "msg-call"));
 
 	private static final Pattern PLACEHOLDER = Pattern.compile("%\\{([A-Za-z0-9_]+)}");
 

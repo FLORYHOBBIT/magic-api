@@ -185,6 +185,47 @@ public class CallNodeHandler implements FlowNodeHandler {
 		return output;
 	}
 
+	/**
+	 * 通过外部连接发送一次（不重试），供消息回调等非流程场景使用。输出同节点：{success, message, request, response, data, retryable, duration}
+	 */
+	public Map<String, Object> callChannel(String name, Object body, Map<String, String> headers, String label) {
+		UploadChannelMagicDynamicRegistry channels = registry.get();
+		if (channels == null) {
+			throw new IllegalStateException("没有启用上传插件，无法使用外部连接（magic-api.upload.enable）");
+		}
+		UploadChannelInfo info = channels.find(name);
+		if (info == null) {
+			throw new IllegalArgumentException("找不到外部连接「" + name + "」，请先在「数据上传 → 上传通道」中创建并保存");
+		}
+		Map<String, Object> options = storage.get().decrypt(info.getOptions());
+		FlowVariables vars = variables.get();
+		if (vars != null) {
+			options = vars.resolveDeep(options);
+		}
+		Map<String, String> requestHeaders = headers == null ? new LinkedHashMap<>() : headers;
+		UploadChannel channel = factory.get().create(info.getProtocol(), options, batch -> new ChannelRequest(body, requestHeaders, new LinkedHashMap<>()));
+		long start = System.currentTimeMillis();
+		SendResult result;
+		try {
+			result = channel.send(new UploadBatch(label, 1, rows(body), null, null));
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			result = SendResult.failure("已中断");
+		} catch (Exception e) {
+			String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+			result = e instanceof IllegalArgumentException ? SendResult.rejected(message, null) : SendResult.failure(message);
+		}
+		Map<String, Object> output = new LinkedHashMap<>();
+		output.put("success", result.isSuccess());
+		output.put("message", result.getMessage());
+		output.put("request", body instanceof CharSequence ? body.toString() : FlowJson.stringify(body));
+		output.put("response", result.getResponse());
+		output.put("data", parse(info.getProtocol(), result.getResponse()));
+		output.put("retryable", !result.isSuccess() && result.isRetryable());
+		output.put("duration", System.currentTimeMillis() - start);
+		return output;
+	}
+
 	private static Map<String, Object> merge(Map<String, Object> extra, Map<String, Object> scope) {
 		if (scope == null || scope.isEmpty()) {
 			return extra;

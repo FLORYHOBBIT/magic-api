@@ -48,4 +48,10 @@ public interface FlowJsonCodes {
 	JsonCode FLOW_HTTP_CONFLICT = new JsonCode(5020, "HTTP 地址 %s 已被其他接口或流程占用");
 
 	JsonCode FLOW_SOAP_CONFLICT = new JsonCode(5021, "WebService %s 的方法 %s 已被流程「%s」使用");
+
+	JsonCode FLOW_MSG_CONFLICT = new JsonCode(5022, "消息类型 %s 已被流程「%s」使用");
+
+	JsonCode FLOW_MSG_DISABLED = new JsonCode(5023, "消息中心没有启用（magic-api.flow.msg.enable）");
+
+	JsonCode FLOW_MSG_NOT_FOUND = new JsonCode(5024, "找不到消息：%s");
 }

@@ -56,6 +56,177 @@ public class MagicFlowProperties {
 	 */
 	private Map<String, String> vars = new LinkedHashMap<>();
 
+	/**
+	 * 消息中心
+	 */
+	private final Msg msg = new Msg();
+
+	public Msg getMsg() {
+		return msg;
+	}
+
+	/**
+	 * 消息中心配置，前缀 magic-api.flow.msg。每种消息类型的重试、顺序、回调、告警在流程的「消息」触发节点上配置。
+	 */
+	public static class Msg {
+
+		/**
+		 * 是否启用消息中心（接收入口与消费调度）
+		 */
+		private boolean enable = true;
+
+		/**
+		 * 消息表所在数据源 key；为空时沿用 magic-api.upload.datasource，再为空用主数据源
+		 */
+		private String datasource;
+
+		/**
+		 * 表名前缀，表名为 前缀 + msg
+		 */
+		private String tablePrefix = "magic_flow_";
+
+		/**
+		 * 首次使用时自动建表；DBA 不允许程序建表时设为 false 并手工建表
+		 */
+		private boolean initSchema = true;
+
+		/**
+		 * HTTP 接收地址前缀（在 magic-api.prefix 之后），地址为 前缀/类型
+		 */
+		private String httpPath = "/msg";
+
+		/**
+		 * 通用 WebService 的服务名，地址为 magic-api.flow.soap-prefix + /服务名
+		 */
+		private String soapService = "msg";
+
+		/**
+		 * 轮询待处理消息的间隔；收到消息时会立即唤醒，不必等轮询
+		 */
+		private java.time.Duration pollInterval = java.time.Duration.ofSeconds(1);
+
+		/**
+		 * 消费线程数（所有类型共用，每种类型另有并发数上限）
+		 */
+		private int threads = 8;
+
+		/**
+		 * 处理中超过该时长视为超时（服务宕机、线程卡死），恢复为待重试
+		 */
+		private java.time.Duration processingTimeout = java.time.Duration.ofMinutes(10);
+
+		/**
+		 * 成功、已忽略的消息保留天数，0 不清理；死信不自动删除
+		 */
+		private int retainDays = 30;
+
+		/**
+		 * 清理时间，6 位 cron
+		 */
+		private String cleanupCron = "0 30 3 * * ?";
+
+		/**
+		 * 告警检查（积压、延迟）间隔
+		 */
+		private java.time.Duration alertInterval = java.time.Duration.ofMinutes(1);
+
+		public boolean isEnable() {
+			return enable;
+		}
+
+		public void setEnable(boolean enable) {
+			this.enable = enable;
+		}
+
+		public String getDatasource() {
+			return datasource;
+		}
+
+		public void setDatasource(String datasource) {
+			this.datasource = datasource;
+		}
+
+		public String getTablePrefix() {
+			return tablePrefix;
+		}
+
+		public void setTablePrefix(String tablePrefix) {
+			this.tablePrefix = tablePrefix;
+		}
+
+		public boolean isInitSchema() {
+			return initSchema;
+		}
+
+		public void setInitSchema(boolean initSchema) {
+			this.initSchema = initSchema;
+		}
+
+		public String getHttpPath() {
+			return httpPath;
+		}
+
+		public void setHttpPath(String httpPath) {
+			this.httpPath = httpPath;
+		}
+
+		public String getSoapService() {
+			return soapService;
+		}
+
+		public void setSoapService(String soapService) {
+			this.soapService = soapService;
+		}
+
+		public java.time.Duration getPollInterval() {
+			return pollInterval;
+		}
+
+		public void setPollInterval(java.time.Duration pollInterval) {
+			this.pollInterval = pollInterval;
+		}
+
+		public int getThreads() {
+			return threads;
+		}
+
+		public void setThreads(int threads) {
+			this.threads = threads;
+		}
+
+		public java.time.Duration getProcessingTimeout() {
+			return processingTimeout;
+		}
+
+		public void setProcessingTimeout(java.time.Duration processingTimeout) {
+			this.processingTimeout = processingTimeout;
+		}
+
+		public int getRetainDays() {
+			return retainDays;
+		}
+
+		public void setRetainDays(int retainDays) {
+			this.retainDays = retainDays;
+		}
+
+		public String getCleanupCron() {
+			return cleanupCron;
+		}
+
+		public void setCleanupCron(String cleanupCron) {
+			this.cleanupCron = cleanupCron;
+		}
+
+		public java.time.Duration getAlertInterval() {
+			return alertInterval;
+		}
+
+		public void setAlertInterval(java.time.Duration alertInterval) {
+			this.alertInterval = alertInterval;
+		}
+	}
+
 	public boolean isEnable() {
 		return enable;
 	}

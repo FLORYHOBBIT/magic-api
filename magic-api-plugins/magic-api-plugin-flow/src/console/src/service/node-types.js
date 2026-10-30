@@ -5,7 +5,7 @@
 const yesNo = [['', '默认'], ['true', '是'], ['false', '否']]
 
 export const GROUPS = [
-    { name: '触发', types: ['http', 'soap', 'timer'] },
+    { name: '触发', types: ['http', 'soap', 'timer', 'msg'] },
     { name: '数据', types: ['query', 'write', 'save'] },
     { name: '报文', types: ['map', 'nest', 'template', 'xml', 'json', 'validate'] },
     { name: '调用', types: ['call'] },
@@ -60,6 +60,62 @@ export const NODE_TYPES = {
             { key: 'failurePolicy', label: '批次失败时', type: 'select', options: [['stop', '停止，下次从这批继续'], ['skip', '记录后跳过，之后补传']], default: 'stop' },
             { key: 'maxBatches', label: '单次最多批数', placeholder: '0 不限' },
             { key: 'columnCase', label: '列名格式', type: 'select', options: ['lower', 'camel', 'upper', 'raw'], default: 'lower' }
+        ]
+    },
+    msg: {
+        label: '消息', color: '#0D9488', trigger: true,
+        description: '接收院内系统推送的消息：先入库、立即回执，再由本流程异步处理（一种消息类型对应一个流程）。' +
+            'input.msgId 为消息 id，input.payload 为原始报文，input.body / input.xml 为解析后的 JSON / XML，input.attempt 为第几次处理。' +
+            '只有消息 id 时，后面接「调用外部系统」或「查库」取详情。消息记录在底部「消息中心」查看。',
+        fields: [
+            { key: 'type', label: '消息类型', placeholder: 'lis.result', help: '字母、数字、点、横线；HTTP 地址为 POST /msg/类型' },
+            {
+                key: 'receive', label: '接收方式', type: 'select', default: 'http', options: [
+                    ['http', 'HTTP + 通用 WebService'],
+                    ['soap', '自定义 WebService 方法（兼容老系统）']
+                ], help: '通用 WebService 为 /ws/msg 的 sendMessage(type, msgId, payload)'
+            },
+            { key: 'service', label: '服务名', placeholder: 'HIP', show: c => c.receive === 'soap' },
+            { key: 'operation', label: '方法名', placeholder: 'HIPMessageServer', show: c => c.receive === 'soap' },
+            { key: 'params', label: '参数名', placeholder: 'action,message', show: c => c.receive === 'soap', help: '逗号分隔，最后一个参数作为报文' },
+            { key: 'typeFrom', label: '区分类型', placeholder: "'hip.' + input.action", show: c => c.receive === 'soap', help: '多个类型共用一个方法时填写，表达式结果为消息类型' },
+            { key: 'namespace', label: '命名空间', show: c => c.receive === 'soap' },
+            { key: 'msgId', label: '消息 id', placeholder: 'input.msgId', help: "表达式，如 input.xml.Request.Header.MsgId、input.headers['x-msg-id']" },
+            { key: 'auth', label: '鉴权', type: 'select', options: [['none', '不鉴权'], ['token', '请求头令牌']], default: 'none' },
+            { key: 'tokenHeader', label: '令牌请求头', placeholder: 'X-Token', show: c => c.auth === 'token' },
+            { key: 'token', label: '令牌', placeholder: '${var.消息令牌}', show: c => c.auth === 'token' },
+            { key: 'allowIps', label: '允许的 IP', placeholder: '192.168.1.*', help: '为空不限制' },
+            { key: 'reply', label: '回执模板', type: 'code', rows: 3, placeholder: '为空：{"code":0,"message":"已接收","msgId":...}', help: '可用 msgId、type、duplicate（重复消息）' },
+            { key: 'replyFormat', label: '回执格式', type: 'select', options: [['auto', '自动（HTTP 为 JSON，WebService 为 XML）'], ['json', 'JSON'], ['xml', 'XML'], ['text', '文本']], default: 'auto' },
+            { key: 'concurrency', label: '并发数', placeholder: '2' },
+            { key: 'maxRetries', label: '失败重试次数', placeholder: '5', help: '用完转死信，可在消息中心人工重试' },
+            { key: 'backoff', label: '重试等待（秒）', placeholder: '60,300,1800', help: '逗号分隔，依次使用，超出时用最后一个' },
+            {
+                key: 'order', label: '顺序消费', type: 'select', default: 'none', options: [
+                    ['none', '不要求顺序'],
+                    ['type', '整个类型按接收顺序逐条处理'],
+                    ['key', '按分组键（组内有序、组间并发）']
+                ]
+            },
+            { key: 'orderKey', label: '分组键', placeholder: 'input.body.patientId', show: c => c.order === 'key' },
+            { key: 'onDead', label: '前一条成为死信时', type: 'select', options: [['block', '阻塞，等人工重试或忽略'], ['skip', '跳过，继续后面的']], default: 'block', show: c => c.order && c.order !== 'none' },
+            {
+                key: 'callback', label: '处理完回调', type: 'select', default: 'none', options: [
+                    ['none', '不回调'], ['success', '成功时'], ['dead', '成为死信时'], ['both', '成功和死信时']
+                ]
+            },
+            { key: 'callbackChannel', label: '回调连接', placeholder: '外部连接名称', show: c => c.callback && c.callback !== 'none' },
+            { key: 'callbackFormat', label: '回调格式', type: 'select', options: ['json', 'xml', 'text'], default: 'json', show: c => c.callback && c.callback !== 'none' },
+            { key: 'callbackBody', label: '回调报文', type: 'code', rows: 4, show: c => c.callback && c.callback !== 'none', help: '模板，可用 msgId、type、status、result（流程返回值）、error、body、xml' },
+            { key: 'callbackDeadBody', label: '死信回调报文', type: 'code', rows: 3, show: c => c.callback === 'both', help: '为空用回调报文' },
+            { key: 'callbackHeaders', label: '回调请求头', type: 'kv', show: c => c.callback && c.callback !== 'none' },
+            { key: 'callbackRetries', label: '回调重试次数', placeholder: '5', show: c => c.callback && c.callback !== 'none' },
+            { key: 'callbackBackoff', label: '回调重试等待（秒）', placeholder: '60,300,1800', show: c => c.callback && c.callback !== 'none' },
+            { key: 'alertDead', label: '死信告警', type: 'checkbox' },
+            { key: 'alertBacklog', label: '积压告警（条）', placeholder: '0 不告警' },
+            { key: 'alertDelay', label: '延迟告警（分钟）', placeholder: '0 不告警', help: '最早一条待处理消息超过该时间' },
+            { key: 'alertCallback', label: '回调失败告警', type: 'checkbox', show: c => c.callback && c.callback !== 'none' },
+            { key: 'alertBlocked', label: '顺序阻塞告警', type: 'checkbox', show: c => c.order && c.order !== 'none' }
         ]
     },
     query: {

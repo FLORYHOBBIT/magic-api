@@ -21,6 +21,12 @@ import org.ssssssss.magicapi.datasource.model.MagicDynamicDataSource;
 import org.ssssssss.magicapi.flow.engine.FlowEngine;
 import org.ssssssss.magicapi.flow.engine.FlowNodeHandler;
 import org.ssssssss.magicapi.flow.engine.node.*;
+import org.ssssssss.magicapi.flow.msg.JdbcMsgStore;
+import org.ssssssss.magicapi.flow.msg.MsgCenter;
+import org.ssssssss.magicapi.flow.msg.MsgDispatcher;
+import org.ssssssss.magicapi.flow.msg.MsgTriggerNodeHandler;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.ssssssss.magicapi.upload.alert.UploadAlertService;
 import org.ssssssss.magicapi.flow.service.*;
 import org.ssssssss.magicapi.flow.support.FlowVariables;
 import org.ssssssss.magicapi.flow.trigger.*;
@@ -216,6 +222,50 @@ public class MagicFlowConfiguration implements MagicPluginConfiguration {
 		return new TimerFlowTriggerRegistrar(runner::getObject, jobService, scheduler);
 	}
 
+	// ------------------------------------------------------------------ 消息中心
+
+	@Bean
+	public MsgTriggerNodeHandler flowMsgTriggerNodeHandler() {
+		return new MsgTriggerNodeHandler();
+	}
+
+	/**
+	 * 消息表的数据源：magic-api.flow.msg.datasource → magic-api.upload.datasource → 主数据源，首次使用时解析
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	@ConditionalOnProperty(prefix = "magic-api.flow.msg", name = "enable", havingValue = "true", matchIfMissing = true)
+	public JdbcMsgStore flowMsgStore(ObjectProvider<MagicDynamicDataSource> dynamicDataSource, MagicFlowProperties properties, Environment environment) {
+		MagicFlowProperties.Msg msg = properties.getMsg();
+		String key = StringUtils.trimToNull(StringUtils.defaultIfBlank(msg.getDatasource(), environment.getProperty("magic-api.upload.datasource")));
+		return new JdbcMsgStore(() -> {
+			MagicDynamicDataSource ds = dynamicDataSource.getIfAvailable();
+			if (ds == null || ds.isEmpty()) {
+				return null;
+			}
+			return new JdbcTemplate(ds.getDataSource(key).getDataSource());
+		}, msg.getTablePrefix(), msg.isInitSchema());
+	}
+
+	@Bean
+	@ConditionalOnProperty(prefix = "magic-api.flow.msg", name = "enable", havingValue = "true", matchIfMissing = true)
+	public MsgCenter flowMsgCenter(@Qualifier("requestMappingHandlerMapping") ObjectProvider<RequestMappingHandlerMapping> mapping,
+								   ObjectProvider<FlowRunner> runner, SoapFlowTriggerRegistrar soap, JdbcMsgStore store,
+								   ObjectProvider<MagicAPIProperties> apiProperties, MagicFlowProperties properties) {
+		MagicFlowProperties.Msg msg = properties.getMsg();
+		return new MsgCenter(mapping::getObject, runner::getObject, soap, store, basePath(apiProperties, msg.getHttpPath()), msg.getSoapService());
+	}
+
+	@Bean(initMethod = "start", destroyMethod = "stop")
+	@ConditionalOnProperty(prefix = "magic-api.flow.msg", name = "enable", havingValue = "true", matchIfMissing = true)
+	public MsgDispatcher flowMsgDispatcher(MsgCenter center, ObjectProvider<FlowRunner> runner, ObjectProvider<CallNodeHandler> caller,
+										   ObjectProvider<UploadAlertService> alerts, MagicFlowProperties properties,
+										   @Qualifier("magicFlowTaskScheduler") ThreadPoolTaskScheduler scheduler) {
+		MagicFlowProperties.Msg msg = properties.getMsg();
+		return new MsgDispatcher(center, runner::getObject, caller::getIfAvailable, alerts::getIfAvailable, msg.getThreads(),
+				msg.getPollInterval(), msg.getProcessingTimeout(), msg.getAlertInterval(), msg.getRetainDays(), msg.getCleanupCron(), scheduler);
+	}
+
 	private static String basePath(ObjectProvider<MagicAPIProperties> apiProperties, String sub) {
 		MagicAPIProperties api = apiProperties.getIfAvailable();
 		String prefix = api == null ? "" : StringUtils.defaultString(api.getPrefix());
@@ -241,8 +291,10 @@ public class MagicFlowConfiguration implements MagicPluginConfiguration {
 
 	@Bean
 	public MagicFlowController.Services flowControllerServices(FlowEngine engine, FlowRunner runner, FlowJobService jobService,
-															   FlowVariables variables, FlowTemplates templates, FlowPackageService packages) {
-		return new MagicFlowController.Services(engine, runner, jobService, variables, templates, packages);
+															   FlowVariables variables, FlowTemplates templates, FlowPackageService packages,
+															   ObjectProvider<MsgCenter> msgCenter, ObjectProvider<MsgDispatcher> msgDispatcher) {
+		return new MagicFlowController.Services(engine, runner, jobService, variables, templates, packages,
+				msgCenter.getIfAvailable(), msgDispatcher.getIfAvailable());
 	}
 
 	@Override

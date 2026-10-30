@@ -96,22 +96,62 @@ public class SoapFlowTriggerRegistrar implements FlowTriggerRegistrar {
 		Map<String, Object> config = start.getConfig();
 		String serviceName = Objects.toString(config.get("service")).trim();
 		String operationName = Objects.toString(config.get("operation")).trim();
-		Service service = services.get(serviceName);
-		if (service != null && service.operations.containsKey(operationName)) {
-			Operation existing = service.operations.get(operationName);
-			FlowInfo other = runner.flow(existing.flowId);
-			throw new InvalidArgumentException(FlowJsonCodes.FLOW_SOAP_CONFLICT.format(serviceName, operationName, other == null ? existing.flowId : other.getName()));
+		List<String> params = new ArrayList<>();
+		for (String param : StringUtils.defaultIfBlank(Objects.toString(config.get("params"), null), "message").split(",")) {
+			if (!param.trim().isEmpty()) {
+				params.add(param.trim());
+			}
 		}
 		Operation operation = new Operation();
 		operation.flowId = info.getId();
+		operation.owner = info.getName();
 		operation.name = operationName;
 		operation.namespace = StringUtils.defaultIfBlank(Objects.toString(config.get("namespace"), null), "http://flow.magicapi.ssssssss.org/" + serviceName);
-		for (String param : StringUtils.defaultIfBlank(Objects.toString(config.get("params"), null), "message").split(",")) {
-			if (!param.trim().isEmpty()) {
-				operation.params.add(param.trim());
-			}
-		}
+		operation.params.addAll(params);
 		operation.resultName = StringUtils.defaultIfBlank(Objects.toString(config.get("resultName"), null), "return");
+		Handle handle = add(serviceName, operation);
+		logger.info("注册 WebService 方法：{}.{} -> {}", serviceName, operationName, info.getName());
+		return handle;
+	}
+
+	/**
+	 * 注册一个由 handler 处理的方法（消息中心的接收入口使用），与流程方法共用服务和 WSDL
+	 *
+	 * @param owner 占用者说明，方法冲突时显示
+	 * @return 句柄，传给 {@link #removeOperation(Object)}
+	 */
+	public synchronized Object addOperation(String serviceName, String operationName, String namespace, List<String> params,
+											String resultName, String owner, OperationHandler handler) {
+		Operation operation = new Operation();
+		operation.owner = owner;
+		operation.handler = handler;
+		operation.name = operationName;
+		operation.namespace = StringUtils.defaultIfBlank(namespace, "http://flow.magicapi.ssssssss.org/" + serviceName);
+		operation.params.addAll(params);
+		operation.resultName = StringUtils.defaultIfBlank(resultName, "return");
+		return add(serviceName, operation);
+	}
+
+	public synchronized void removeOperation(Object handle) {
+		unregister(null, handle);
+	}
+
+	public String path(String serviceName) {
+		return url(serviceName);
+	}
+
+	private Handle add(String serviceName, Operation operation) {
+		String operationName = operation.name;
+		Service service = services.get(serviceName);
+		if (service != null && service.operations.containsKey(operationName)) {
+			Operation existing = service.operations.get(operationName);
+			String other = existing.owner;
+			if (existing.flowId != null) {
+				FlowInfo flow = runnerSupplier.get().flow(existing.flowId);
+				other = flow == null ? existing.flowId : flow.getName();
+			}
+			throw new InvalidArgumentException(FlowJsonCodes.FLOW_SOAP_CONFLICT.format(serviceName, operationName, other));
+		}
 		if (service == null) {
 			service = new Service();
 			service.name = serviceName;
@@ -128,7 +168,6 @@ public class SoapFlowTriggerRegistrar implements FlowTriggerRegistrar {
 			logger.info("发布 WebService：{}", service.path);
 		}
 		service.operations.put(operationName, operation);
-		logger.info("注册 WebService 方法：{}.{} -> {}", serviceName, operationName, info.getName());
 		return new Handle(serviceName, operationName, service.path);
 	}
 
@@ -202,10 +241,6 @@ public class SoapFlowTriggerRegistrar implements FlowTriggerRegistrar {
 			return fault(soap12, true, "WebService " + service.name + " 没有方法 " + operationName + "，可用方法：" + String.join("、", service.operations.keySet()));
 		}
 		FlowRunner runner = runnerSupplier.get();
-		FlowInfo info = runner.flow(operation.flowId);
-		if (info == null) {
-			return fault(soap12, false, "方法 " + operationName + " 对应的流程不存在");
-		}
 		Map<String, Object> input = new LinkedHashMap<>();
 		if (operationElement != null) {
 			NodeList children = operationElement.getChildNodes();
@@ -224,23 +259,38 @@ public class SoapFlowTriggerRegistrar implements FlowTriggerRegistrar {
 		input.put("operation", operationName);
 		input.put("headers", lowerHeaders);
 		input.put("clientIp", request.getRemoteAddr());
-		FlowResult result;
-		try {
-			result = runner.run(info, "soap", input);
-		} catch (InvalidArgumentException e) {
-			return fault(soap12, false, e.getMessage());
-		}
-		if (!result.isSuccess()) {
-			return fault(soap12, false, result.getMessage());
-		}
-		Object value = result.getValue();
 		String text;
-		if (value == null) {
-			text = "";
-		} else if (value instanceof CharSequence) {
-			text = value.toString();
+		if (operation.handler != null) {
+			try {
+				text = operation.handler.handle(input);
+			} catch (Rejected e) {
+				return fault(soap12, e.client, e.getMessage());
+			} catch (RuntimeException e) {
+				logger.warn("WebService {}.{} 处理失败", service.name, operationName, e);
+				return fault(soap12, false, FlowEngine.message(e));
+			}
 		} else {
-			text = XmlCodec.build(value, null, null, false);
+			FlowInfo info = runner.flow(operation.flowId);
+			if (info == null) {
+				return fault(soap12, false, "方法 " + operationName + " 对应的流程不存在");
+			}
+			FlowResult result;
+			try {
+				result = runner.run(info, "soap", input);
+			} catch (InvalidArgumentException e) {
+				return fault(soap12, false, e.getMessage());
+			}
+			if (!result.isSuccess()) {
+				return fault(soap12, false, result.getMessage());
+			}
+			Object value = result.getValue();
+			if (value == null) {
+				text = "";
+			} else if (value instanceof CharSequence) {
+				text = value.toString();
+			} else {
+				text = XmlCodec.build(value, null, null, false);
+			}
 		}
 		String ns = soap12 ? NS_12 : NS_11;
 		String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
@@ -402,6 +452,13 @@ public class SoapFlowTriggerRegistrar implements FlowTriggerRegistrar {
 
 		String flowId;
 
+		/**
+		 * 占用者（流程名或消息类型说明）
+		 */
+		String owner;
+
+		OperationHandler handler;
+
 		String name;
 
 		String namespace;
@@ -409,6 +466,30 @@ public class SoapFlowTriggerRegistrar implements FlowTriggerRegistrar {
 		final List<String> params = new ArrayList<>();
 
 		String resultName;
+	}
+
+	/**
+	 * 非流程方法的处理器：input 为参数（另有 operation、headers、clientIp），返回 &lt;return&gt; 中的文本
+	 */
+	public interface OperationHandler {
+
+		/**
+		 * @throws Rejected 请求方的错误（返回 Client/Sender Fault）
+		 */
+		String handle(Map<String, Object> input);
+	}
+
+	/**
+	 * 拒绝请求，返回 SOAP Fault
+	 */
+	public static class Rejected extends RuntimeException {
+
+		final boolean client;
+
+		public Rejected(String message, boolean client) {
+			super(message);
+			this.client = client;
+		}
 	}
 
 	static final class Handle {

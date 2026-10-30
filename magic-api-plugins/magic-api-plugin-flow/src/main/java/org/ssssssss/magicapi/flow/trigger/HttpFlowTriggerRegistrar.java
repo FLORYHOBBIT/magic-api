@@ -257,7 +257,7 @@ public class HttpFlowTriggerRegistrar implements FlowTriggerRegistrar {
 		return StandardCharsets.UTF_8;
 	}
 
-	static ResponseEntity<byte[]> ok(Object value, String contentType) {
+	public static ResponseEntity<byte[]> ok(Object value, String contentType) {
 		if (value == null) {
 			return ResponseEntity.ok().build();
 		}
@@ -283,7 +283,7 @@ public class HttpFlowTriggerRegistrar implements FlowTriggerRegistrar {
 		return ResponseEntity.ok().header(HttpHeaders.CONTENT_TYPE, mediaType).body(text.getBytes(StandardCharsets.UTF_8));
 	}
 
-	static ResponseEntity<byte[]> error(int status, String message, String node) {
+	public static ResponseEntity<byte[]> error(int status, String message, String node) {
 		Map<String, Object> body = new LinkedHashMap<>();
 		body.put("code", -1);
 		body.put("message", message);
