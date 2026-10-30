@@ -61,9 +61,17 @@ public final class FlowDefinitions {
 				throw new InvalidArgumentException(FLOW_NODE_TYPE_REQUIRED.format(label(node)));
 			}
 		}
+		Set<String> defaults = new HashSet<>();
+		Set<String> failures = new HashSet<>();
 		for (FlowDefinition.Edge edge : definition.getEdges()) {
 			if (!ids.contains(edge.getSource()) || !ids.contains(edge.getTarget())) {
 				throw new InvalidArgumentException(FLOW_EDGE_INVALID.format(edge.getSource(), edge.getTarget()));
+			}
+			if (edge.isDefault() && !defaults.add(edge.getSource())) {
+				throw new InvalidArgumentException(FLOW_EDGE_DUPLICATE.format(label(definition.findNode(edge.getSource())), "无条件"));
+			}
+			if (edge.isFailure() && !failures.add(edge.getSource())) {
+				throw new InvalidArgumentException(FLOW_EDGE_DUPLICATE.format(label(definition.findNode(edge.getSource())), "失败"));
 			}
 		}
 	}

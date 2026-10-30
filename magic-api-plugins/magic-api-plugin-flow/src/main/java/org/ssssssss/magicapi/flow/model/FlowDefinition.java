@@ -113,11 +113,29 @@ public class FlowDefinition {
 
 		private String target;
 
+		public static final String SUCCESS = "success";
+
+		public static final String FAILURE = "failure";
+
 		/**
-		 * 连线条件：为空表示无条件；success / failure 用于调用节点的成功、失败分支；
-		 * 其他值为条件节点的表达式分支名
+		 * 连线条件：
+		 * <ul>
+		 *     <li>为空或 success：默认连线，节点成功且没有其他条件命中时走这条</li>
+		 *     <li>failure：节点执行出错时走这条，变量 error 中是错误信息</li>
+		 *     <li>其他：magic-script 表达式，如 {@code prev.size() > 0}，按顺序第一个为真的生效</li>
+		 * </ul>
 		 */
 		private String condition;
+
+		@com.fasterxml.jackson.annotation.JsonIgnore
+		public boolean isDefault() {
+			return condition == null || condition.trim().isEmpty() || SUCCESS.equals(condition.trim());
+		}
+
+		@com.fasterxml.jackson.annotation.JsonIgnore
+		public boolean isFailure() {
+			return condition != null && FAILURE.equals(condition.trim());
+		}
 
 		public String getSource() {
 			return source;

@@ -25,5 +25,11 @@ public interface FlowJsonCodes {
 
 	JsonCode FLOW_START_NODE_INVALID = new JsonCode(5009, "流程必须有且只有一个起始节点（没有入线的节点），当前：%s");
 
-	JsonCode FLOW_CYCLE_DETECTED = new JsonCode(5010, "流程存在环路，节点「%s」被重复执行");
+	JsonCode FLOW_CYCLE_DETECTED = new JsonCode(5010, "流程执行步数超过 %s，节点「%s」可能处在环路中");
+
+	JsonCode FLOW_NODE_CONFIG_REQUIRED = new JsonCode(5011, "节点「%s」缺少配置项：%s");
+
+	JsonCode FLOW_EDGE_DUPLICATE = new JsonCode(5012, "节点「%s」有多条%s连线，只能保留一条");
+
+	JsonCode FLOW_NODE_CONFIG_INVALID = new JsonCode(5013, "节点「%s」的配置项「%s」不正确：%s");
 }

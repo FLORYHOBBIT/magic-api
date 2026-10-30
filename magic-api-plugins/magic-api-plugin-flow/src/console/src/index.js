@@ -2,6 +2,7 @@ import MagicFlow from './service/magic-flow.js'
 import localZhCN from './i18n/zh-cn.js'
 import localEn from './i18n/en.js'
 import MagicFlowInfo from './components/magic-flow-info.vue'
+import MagicFlowDebug from './components/magic-flow-debug.vue'
 import 'vite-plugin-svg-icons/register'
 
 export default (opt) => {
@@ -16,8 +17,14 @@ export default (opt) => {
             title: 'flow.name',
             service: MagicFlow(opt.bus, opt.constants, i18n.format, opt.Message, opt.request),
         }],
-        // 底部工具条：打开流程时显示基本信息
+        // 底部工具条（编辑器按倒序插入，所以"信息"写在最后显示在最前）
         toolbars: [{
+            id: 'flow-debug',
+            type: 'flow',
+            title: 'flow.debug.title',
+            icon: 'run',
+            component: MagicFlowDebug,
+        }, {
             type: 'flow',
             title: 'flow.title',
             icon: 'parameter',

@@ -22,6 +22,8 @@ class MagicFlowConfigurationTest {
 		runner.run(context -> {
 			assertThat(context).hasSingleBean(FlowInfoMagicResourceStorage.class);
 			assertThat(context).hasSingleBean(FlowMagicDynamicRegistry.class);
+			assertThat(context.getBean(org.ssssssss.magicapi.flow.engine.FlowEngine.class).types())
+					.containsExactlyInAnyOrder("query", "write", "script", "return");
 			assertThat(context.getBean(MagicFlowConfiguration.class).plugin().getJavascriptFilename())
 					.isEqualTo("magic-flow.1.0.0.iife.js");
 		});
@@ -38,7 +40,7 @@ class MagicFlowConfigurationTest {
 	 */
 	@Test
 	void pluginScriptIsPackaged() throws Exception {
-		String name = new MagicFlowConfiguration().plugin().getJavascriptFilename();
+		String name = new MagicFlowConfiguration(null).plugin().getJavascriptFilename();
 		try (InputStream in = getClass().getClassLoader().getResourceAsStream("magic-editor/plugins/" + name)) {
 			assertThat(in).as("前端构建产物 magic-editor/plugins/" + name).isNotNull();
 			ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -48,7 +50,7 @@ class MagicFlowConfigurationTest {
 				out.write(buffer, 0, len);
 			}
 			String script = new String(out.toByteArray(), StandardCharsets.UTF_8);
-			assertThat(script).contains("var MagicFlow").contains("type: \"flow\"").contains("/flow/validate");
+			assertThat(script).contains("var MagicFlow").contains("type: \"flow\"").contains("/flow/debug").contains("flow-debug");
 		}
 	}
 }
