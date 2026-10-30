@@ -14,7 +14,7 @@
     <a target="_blank" href="https://qm.qq.com/cgi-bin/qm/qr?k=Q6dLmVS8cHwoaaP18A3tteK_o0244e6B&jump_from=webapi"><img src="https://img.shields.io/badge/QQgroup-739235910-blue"></a>
 </p>
 
-[Features](#features) | [Quick Start](#quick-start) | [Documentation/Demo](#documentationdemo) | [Example Project](#example-project) | <a target="_blank" href="http://ssssssss.org/changelog.html">Changelog</a> | [Project Screenshots](#project-screenshots)
+[Features](#features) | [Quick Start](#quick-start) | [Documentation/Demo](#documentationdemo) | [Example Project](#example-project) | [SkyWalking Integration](#skywalking-integration) | <a target="_blank" href="http://ssssssss.org/changelog.html">Changelog</a> | [Project Screenshots](#project-screenshots)
 
 # Introduction
 
@@ -75,6 +75,11 @@ Visit `http://localhost:9999/magic/web` to operate
 # Example Project
 
 - [magic-api-example](https://gitee.com/ssssssss-team/magic-api-example)
+
+# SkyWalking Integration
+
+- User guide: [`SKYWALKING_INTEGRATION.md`](SKYWALKING_INTEGRATION.md)
+- The guide covers: startup parameters, minimal verification steps, a common "not taking effect" troubleshooting checklist, and trace breakpoint scenarios
 
 # Project Screenshots
 - Overall Screenshot<br/>
