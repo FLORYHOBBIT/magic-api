@@ -6,7 +6,7 @@ import pkg from './package.json'
 export default {
     base: './',
     build: {
-        minify: false,
+        minify: 'terser',
         cssCodeSplit: true,
         outDir: 'dist',
         lib: {
