@@ -1,5 +1,6 @@
 package org.ssssssss.magicapi.core.service;
 
+import org.apache.commons.lang3.StringUtils;
 import org.ssssssss.magicapi.core.resource.Resource;
 import org.ssssssss.magicapi.core.model.*;
 import org.ssssssss.magicapi.utils.PathUtils;
@@ -9,6 +10,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * 资源存储服务
@@ -130,7 +133,10 @@ public interface MagicResourceService {
 		String fullName;
 		if(entity instanceof PathMagicEntity){
 			PathMagicEntity pme = (PathMagicEntity) entity;
-			fullName = String.format("/%s/%s(/%s/%s)", getGroupName(pme.getGroupId()), pme.getName(), getGroupPath(pme.getGroupId()), pme.getPath());
+			fullName = String.format("/%s/%s(/%s)", getGroupName(pme.getGroupId()), pme.getName(), Stream
+                            .of(getGroupPath(pme.getGroupId()), pme.getPath())
+                            .filter(StringUtils::isNotBlank)
+                            .collect(Collectors.joining("/")));
 		} else {
 			fullName = String.format("/%s/%s", getGroupName(entity.getGroupId()), entity.getName());
 		}

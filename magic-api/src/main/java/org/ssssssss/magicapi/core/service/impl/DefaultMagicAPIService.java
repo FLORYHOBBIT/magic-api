@@ -37,6 +37,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @MagicModule("magic")
 public class DefaultMagicAPIService implements MagicAPIService, JsonCodeConstants {
@@ -78,7 +80,11 @@ public class DefaultMagicAPIService implements MagicAPIService, JsonCodeConstant
 		MagicScriptContext scriptContext = new MagicScriptContext();
 		String fullGroupName = resourceService.getGroupName(info.getGroupId());
 		String fullGroupPath = resourceService.getGroupPath(info.getGroupId());
-		String scriptName = PathUtils.replaceSlash(String.format("/%s/%s(/%s/%s)", fullGroupName, info.getName(), fullGroupPath, info.getPath()));
+        String scriptName = PathUtils.replaceSlash(
+                String.format("/%s/%s(/%s)", fullGroupName, info.getName(), Stream
+                        .of(fullGroupPath, info.getPath())
+                        .filter(StringUtils::isNotBlank)
+                        .collect(Collectors.joining("/"))));
 		scriptContext.setScriptName(scriptName);
 		scriptContext.putMapIntoContext(context);
 		if (requestEntity != null) {

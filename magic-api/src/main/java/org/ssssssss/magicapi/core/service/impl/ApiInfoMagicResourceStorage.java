@@ -5,7 +5,8 @@ import org.ssssssss.magicapi.core.model.ApiInfo;
 import org.ssssssss.magicapi.core.service.AbstractPathMagicResourceStorage;
 import org.ssssssss.magicapi.utils.PathUtils;
 
-import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ApiInfoMagicResourceStorage extends AbstractPathMagicResourceStorage<ApiInfo> {
 
@@ -27,17 +28,27 @@ public class ApiInfoMagicResourceStorage extends AbstractPathMagicResourceStorag
 
 	@Override
 	public String buildMappingKey(ApiInfo info, String path) {
-		return info.getMethod().toUpperCase() + ":" + super.buildMappingKey(info, path);
+		String fullPath = Stream.of(path, info.getPath())
+				.filter(StringUtils::isNotBlank)
+				.collect(Collectors.joining("/"));
+		return info.getMethod().toUpperCase() + ":" + PathUtils.replaceSlash(fullPath);
 	}
 
 	@Override
 	public String buildMappingKey(ApiInfo info) {
-		return PathUtils.replaceSlash(buildMappingKey(info, this.prefix + Objects.toString(magicResourceService.getGroupPath(info.getGroupId()), "")));
+		String path = Stream.of(this.prefix, magicResourceService.getGroupPath(info.getGroupId()))
+				.filter(StringUtils::isNotBlank)
+				.collect(Collectors.joining("/"));
+		// 若接口路径与父级分组路径均为空，则向上返回空，由上层校验 PATH_REQUIRED
+		if (this.prefix.equals(path) && StringUtils.isBlank(info.getPath())) {
+			return null;
+		}
+		return PathUtils.replaceSlash(buildMappingKey(info, path));
 	}
 
 	@Override
 	public void validate(ApiInfo entity) {
 		notBlank(entity.getMethod(), REQUEST_METHOD_REQUIRED);
-		super.validate(entity);
+        notBlank(entity.getScript(), SCRIPT_REQUIRED);
 	}
 }

@@ -7,6 +7,8 @@ out/
 .settings
 bin/
 .myeclipse
+.vscode
+.flyenv
 
 # 前端插件(vite/npm)构建产物，由 mvn 构建时自动生成，不应提交
 node_modules/
