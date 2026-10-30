@@ -51,7 +51,9 @@ class MagicFlowConfigurationTest {
 				out.write(buffer, 0, len);
 			}
 			String script = new String(out.toByteArray(), StandardCharsets.UTF_8);
-			assertThat(script).contains("var MagicFlow").contains("type: \"flow\"").contains("/flow/debug").contains("flow-debug");
+			assertThat(script).contains("var MagicFlow").containsPattern("type:\\s*\"flow\"").contains("/flow/debug").contains("flow-debug")
+					// 画布库打进插件包，内网无需外部资源
+					.contains("lf-graph").doesNotContain("cdn.").doesNotContain("unpkg.com");
 		}
 	}
 }
