@@ -6,6 +6,7 @@ import MagicFlowInfo from './components/magic-flow-info.vue'
 import MagicFlowDebug from './components/magic-flow-debug.vue'
 import MagicFlowStatus from './components/magic-flow-status.vue'
 import MagicFlowSettings from './components/magic-flow-settings.vue'
+import MagicFlowMsg from './components/magic-flow-msg.vue'
 import MagicFlowCanvas from './components/magic-flow-canvas.vue'
 import 'vite-plugin-svg-icons/register'
 
@@ -22,13 +23,19 @@ export default (opt) => {
             title: 'flow.name',
             service: MagicFlow(opt.bus, opt.constants, i18n.format, opt.Message, opt.request, MagicFlowCanvas),
         }],
-        // 底部工具条（编辑器按倒序插入，所以这里倒着写：显示顺序为 信息、调试运行、运行状态、集成配置）
+        // 底部工具条（编辑器按倒序插入，所以这里倒着写：显示顺序为 信息、调试运行、运行状态、消息中心、集成配置）
         toolbars: [{
             id: 'flow-settings',
             type: 'flow',
             title: 'flow.settings.title',
             icon: 'list',
             component: MagicFlowSettings,
+        }, {
+            id: 'flow-msg',
+            type: 'flow',
+            title: 'flow.msg.title',
+            icon: 'event',
+            component: MagicFlowMsg,
         }, {
             id: 'flow-status',
             type: 'flow',

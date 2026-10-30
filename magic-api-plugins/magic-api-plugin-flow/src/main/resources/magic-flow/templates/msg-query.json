@@ -1,0 +1,24 @@
+{
+  "id": "msg-query",
+  "name": "消息消费（查表取详情）",
+  "description": "院内系统推送消息（可以只有消息 id）：入库后立即回执 → 按消息 id 查 HIS 表取详情 → 写入业务表 / 更新状态。失败自动重试，用完进入死信，在「消息中心」处理。",
+  "params": [
+    {"key": "type", "label": "消息类型", "default": "lis.result", "description": "接收地址 POST /msg/类型"},
+    {"key": "msgId", "label": "消息 id 取法", "default": "input.msgId", "description": "表达式，如 input.xml.Request.Header.MsgId"},
+    {"key": "querySql", "label": "取详情 SQL", "default": "select * from lis_report where report_no = #{input.msgId}", "multiline": true},
+    {"key": "writeSql", "label": "处理 SQL（d 为详情）", "default": "update lis_report set read_flag = '1' where report_no = #{d.report_no}", "multiline": true}
+  ],
+  "definition": {
+    "nodes": [
+      {"id": "start", "type": "msg", "name": "接收消息", "config": {"type": "%{type}", "msgId": "%{msgId}", "maxRetries": "5", "backoff": "60,300,1800", "alertDead": true}, "ui": {"x": 60, "y": 120}},
+      {"id": "d", "type": "query", "name": "取详情", "config": {"sql": "%{querySql}", "result": "one"}, "ui": {"x": 290, "y": 120}},
+      {"id": "check", "type": "validate", "name": "详情存在", "config": {"source": "[d]", "mode": "fail", "rules": [{"rule": "expr", "value": "row != null", "message": "按消息 id 查不到详情"}]}, "ui": {"x": 520, "y": 120}},
+      {"id": "save", "type": "write", "name": "处理", "config": {"sql": "%{writeSql}"}, "ui": {"x": 750, "y": 120}}
+    ],
+    "edges": [
+      {"source": "start", "target": "d"},
+      {"source": "d", "target": "check"},
+      {"source": "check", "target": "save"}
+    ]
+  }
+}

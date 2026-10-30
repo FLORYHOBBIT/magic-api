@@ -19,6 +19,7 @@ import org.ssssssss.magicapi.flow.engine.FlowResult;
 import org.ssssssss.magicapi.flow.model.FlowDefinition;
 import org.ssssssss.magicapi.flow.model.FlowDefinitions;
 import org.ssssssss.magicapi.flow.model.FlowInfo;
+import org.ssssssss.magicapi.flow.msg.*;
 import org.ssssssss.magicapi.flow.service.*;
 import org.ssssssss.magicapi.flow.support.FlowJson;
 import org.ssssssss.magicapi.flow.support.FlowVariables;
@@ -254,6 +255,157 @@ public class MagicFlowController extends MagicController implements MagicExcepti
 		}
 	}
 
+	// ------------------------------------------------------------------ 消息中心
+
+	/**
+	 * 各类型概况：登记的流程、接收地址、顺序/回调设置，以及未完成消息统计
+	 */
+	@GetMapping("/flow/msg/stats")
+	@ResponseBody
+	public JsonBean<Map<String, Object>> msgStats() {
+		MsgCenter center = msgCenter();
+		Map<String, JdbcMsgStore.TypeStats> stats = center.getStore().stats();
+		Map<String, String> bindings = center.bindings();
+		Set<String> types = new TreeSet<>(bindings.keySet());
+		types.addAll(stats.keySet());
+		List<Map<String, Object>> rows = new ArrayList<>();
+		for (String type : types) {
+			Map<String, Object> row = new LinkedHashMap<>();
+			row.put("type", type);
+			FlowInfo flow = center.flow(type);
+			row.put("flowId", flow == null ? null : flow.getId());
+			row.put("flowName", flow == null ? null : flow.getName());
+			try {
+				MsgTypeConfig config = center.config(type);
+				if (config != null) {
+					row.put("url", center.httpUrl(type));
+					row.put("receive", config.getReceive());
+					row.put("order", config.getOrder());
+					row.put("callback", config.getCallback());
+					row.put("concurrency", config.getConcurrency());
+					row.put("maxRetries", config.getMaxRetries());
+				}
+			} catch (RuntimeException e) {
+				row.put("configError", FlowEngine.message(e));
+			}
+			JdbcMsgStore.TypeStats s = stats.get(type);
+			row.put("backlog", s == null ? 0 : s.getBacklog());
+			row.put("retrying", s == null ? 0 : s.getRetrying());
+			row.put("processing", s == null ? 0 : s.getProcessing());
+			row.put("dead", s == null ? 0 : s.getDead());
+			row.put("callbackFailed", s == null ? 0 : s.getCallbackFailed());
+			row.put("oldest", s == null ? null : s.getOldest());
+			rows.add(row);
+		}
+		Map<String, Object> result = new LinkedHashMap<>();
+		result.put("types", rows);
+		result.put("table", center.getStore().schema().table());
+		result.put("node", services.msgDispatcher == null ? null : services.msgDispatcher.getOwner());
+		return new JsonBean<>(result);
+	}
+
+	/**
+	 * 消息列表（不含报文），按接收时间倒序
+	 *
+	 * @param from / to 接收时间，yyyy-MM-dd 或 yyyy-MM-dd HH:mm:ss
+	 */
+	@GetMapping("/flow/msg/list")
+	@ResponseBody
+	public JsonBean<JdbcMsgStore.Page> msgList(String type, String status, String cbStatus, String msgId, String from, String to,
+											   Integer page, Integer size) {
+		JdbcMsgStore.Query query = new JdbcMsgStore.Query();
+		query.type = StringUtils.trimToNull(type);
+		query.status = StringUtils.trimToNull(status);
+		query.cbStatus = StringUtils.trimToNull(cbStatus);
+		query.msgId = StringUtils.trimToNull(msgId);
+		query.from = parseTime(from, false);
+		query.to = parseTime(to, true);
+		query.size = size == null ? 20 : size;
+		query.offset = Math.max(0, (page == null ? 1 : page) - 1) * Math.max(1, Math.min(query.size, 500));
+		return new JsonBean<>(msgCenter().getStore().page(query));
+	}
+
+	/**
+	 * 消息详情（含报文、执行轨迹、回调回执）
+	 */
+	@GetMapping("/flow/msg/detail")
+	@ResponseBody
+	public JsonBean<FlowMessage> msgDetail(String id) {
+		FlowMessage message = StringUtils.isBlank(id) ? null : msgCenter().getStore().find(id);
+		isTrue(message != null, FLOW_MSG_NOT_FOUND.format(id));
+		return new JsonBean<>(message);
+	}
+
+	/**
+	 * 重新处理（死信、已忽略、待重试），重试次数清零
+	 *
+	 * @param ids 逗号分隔
+	 */
+	@PostMapping("/flow/msg/retry")
+	@ResponseBody
+	public JsonBean<Integer> msgRetry(String ids) {
+		int count = msgCenter().getStore().retry(split(ids));
+		if (services.msgDispatcher != null) {
+			services.msgDispatcher.wake();
+		}
+		return new JsonBean<>(count);
+	}
+
+	/**
+	 * 忽略（待处理、待重试、死信）；顺序消费时放行后面的消息
+	 */
+	@PostMapping("/flow/msg/ignore")
+	@ResponseBody
+	public JsonBean<Integer> msgIgnore(String ids) {
+		int count = msgCenter().getStore().ignore(split(ids));
+		if (services.msgDispatcher != null) {
+			services.msgDispatcher.wake();
+		}
+		return new JsonBean<>(count);
+	}
+
+	/**
+	 * 重新回调
+	 */
+	@PostMapping("/flow/msg/callback")
+	@ResponseBody
+	public JsonBean<Integer> msgCallback(String ids) {
+		return new JsonBean<>(msgCenter().getStore().resendCallback(split(ids)));
+	}
+
+	private MsgCenter msgCenter() {
+		isTrue(services.msgCenter != null, FLOW_MSG_DISABLED);
+		return services.msgCenter;
+	}
+
+	private static List<String> split(String ids) {
+		List<String> result = new ArrayList<>();
+		if (ids != null) {
+			for (String id : ids.split("[,，\\s]+")) {
+				if (!id.trim().isEmpty()) {
+					result.add(id.trim());
+				}
+			}
+		}
+		return result;
+	}
+
+	private static Date parseTime(String text, boolean end) {
+		String value = StringUtils.trimToNull(text);
+		if (value == null) {
+			return null;
+		}
+		try {
+			if (value.length() <= 10) {
+				Date day = new java.text.SimpleDateFormat("yyyy-MM-dd").parse(value);
+				return end ? new Date(day.getTime() + 24L * 3600 * 1000) : day;
+			}
+			return new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(value);
+		} catch (java.text.ParseException e) {
+			throw new InvalidArgumentException(FLOW_DEFINITION_INVALID.format("时间格式应为 yyyy-MM-dd 或 yyyy-MM-dd HH:mm:ss：" + value));
+		}
+	}
+
 	// ------------------------------------------------------------------ 工具
 
 	private FlowInfo saved(String id) {
@@ -313,14 +465,25 @@ public class MagicFlowController extends MagicController implements MagicExcepti
 
 		final FlowPackageService packages;
 
+		final MsgCenter msgCenter;
+
+		final MsgDispatcher msgDispatcher;
+
 		public Services(FlowEngine engine, FlowRunner runner, FlowJobService jobService, FlowVariables variables,
 						FlowTemplates templates, FlowPackageService packages) {
+			this(engine, runner, jobService, variables, templates, packages, null, null);
+		}
+
+		public Services(FlowEngine engine, FlowRunner runner, FlowJobService jobService, FlowVariables variables,
+						FlowTemplates templates, FlowPackageService packages, MsgCenter msgCenter, MsgDispatcher msgDispatcher) {
 			this.engine = engine;
 			this.runner = runner;
 			this.jobService = jobService;
 			this.variables = variables;
 			this.templates = templates;
 			this.packages = packages;
+			this.msgCenter = msgCenter;
+			this.msgDispatcher = msgDispatcher;
 		}
 	}
 }

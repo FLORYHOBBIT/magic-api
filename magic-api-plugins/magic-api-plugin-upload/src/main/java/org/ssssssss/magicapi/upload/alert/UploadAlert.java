@@ -19,7 +19,11 @@ public class UploadAlert {
 		/**
 		 * 补传失败批次时仍有失败
 		 */
-		RETRY_FAILED
+		RETRY_FAILED,
+		/**
+		 * 集成流程消息中心的告警（死信、积压、延迟、回调失败、顺序阻塞），标题由告警方给出
+		 */
+		MESSAGE
 	}
 
 	private final Type type;
@@ -40,6 +44,8 @@ public class UploadAlert {
 
 	private final Date time;
 
+	private final String title;
+
 	public UploadAlert(Type type, String jobName, String hospital, String status, String message,
 					   long totalRows, long failedRows, int failedBatches, Date time) {
 		this.type = type;
@@ -51,6 +57,23 @@ public class UploadAlert {
 		this.failedRows = failedRows;
 		this.failedBatches = failedBatches;
 		this.time = time;
+		this.title = null;
+	}
+
+	/**
+	 * 自定义标题的告警（其他插件使用），jobName 用于静默期去重
+	 */
+	public UploadAlert(Type type, String jobName, String hospital, String status, String title, String message, Date time) {
+		this.type = type;
+		this.jobName = jobName;
+		this.hospital = hospital;
+		this.status = status;
+		this.message = message;
+		this.totalRows = 0;
+		this.failedRows = 0;
+		this.failedBatches = 0;
+		this.time = time;
+		this.title = title;
 	}
 
 	public Type getType() {
@@ -90,6 +113,9 @@ public class UploadAlert {
 	}
 
 	public String getTitle() {
+		if (title != null) {
+			return (hospital == null || hospital.isEmpty() ? "" : "[" + hospital + "] ") + title;
+		}
 		String what;
 		switch (type) {
 			case JOB_FAILED:

@@ -3,6 +3,7 @@ export default {
         title: '集成流程信息',
         name: '集成流程',
         status: { title: '运行状态' },
+        msg: { title: '消息中心' },
         settings: { title: '集成配置' },
         form: {
             name: '流程名称',

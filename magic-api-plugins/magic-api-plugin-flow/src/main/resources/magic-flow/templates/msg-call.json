@@ -1,0 +1,26 @@
+{
+  "id": "msg-call",
+  "name": "消息消费（回查接口取详情）",
+  "description": "院内系统只推送消息 id：入库后立即回执 → 调用对方接口按消息 id 取详情 → 写库 → 可选处理完回调对方。",
+  "params": [
+    {"key": "type", "label": "消息类型", "default": "pacs.report"},
+    {"key": "channel", "label": "取详情的外部连接", "default": "pacs", "description": "在「数据上传 → 上传通道」中创建"},
+    {"key": "request", "label": "取详情请求体", "default": "{msgId: input.msgId}", "description": "表达式"},
+    {"key": "writeSql", "label": "处理 SQL（detail 为接口返回的 data）", "default": "insert into pacs_report (report_no, content) values (#{detail.data.reportNo}, #{detail.data.content})", "multiline": true},
+    {"key": "callback", "label": "处理完回调", "default": "none", "options": ["none", "success", "dead", "both"]},
+    {"key": "callbackChannel", "label": "回调的外部连接", "default": "pacs"}
+  ],
+  "definition": {
+    "nodes": [
+      {"id": "start", "type": "msg", "name": "接收消息", "config": {"type": "%{type}", "maxRetries": "5", "backoff": "60,300,1800", "alertDead": true,
+        "callback": "%{callback}", "callbackChannel": "%{callbackChannel}", "callbackFormat": "json",
+        "callbackBody": "{\"msgId\": \"{{msgId}}\", \"status\": \"{{status}}\", \"message\": \"{{error}}\"}"}, "ui": {"x": 60, "y": 120}},
+      {"id": "detail", "type": "call", "name": "取详情", "config": {"channel": "%{channel}", "body": "%{request}", "retry": "1"}, "ui": {"x": 290, "y": 120}},
+      {"id": "save", "type": "write", "name": "处理", "config": {"sql": "%{writeSql}"}, "ui": {"x": 520, "y": 120}}
+    ],
+    "edges": [
+      {"source": "start", "target": "detail"},
+      {"source": "detail", "target": "save"}
+    ]
+  }
+}

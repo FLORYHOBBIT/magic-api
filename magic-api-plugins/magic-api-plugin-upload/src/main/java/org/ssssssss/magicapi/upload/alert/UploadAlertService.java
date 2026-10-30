@@ -78,8 +78,15 @@ public class UploadAlertService {
 		}
 	}
 
-	void send(UploadAlert alert) {
-		String key = alert.getJobName() + "|" + alert.getType();
+	public String getHospital() {
+		return hospital;
+	}
+
+	/**
+	 * 发送告警：同一 jobName 同一类告警在静默期内只发一次；通知失败只记日志
+	 */
+	public void send(UploadAlert alert) {
+		String key = alert.getJobName() + "|" + alert.getType() + "|" + alert.getStatus();
 		long now = clock.millis();
 		Long last = lastSent.get(key);
 		if (last != null && now - last < silence.toMillis()) {

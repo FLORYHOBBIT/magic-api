@@ -13,6 +13,8 @@ import org.ssssssss.magicapi.flow.engine.node.CallNodeHandler;
 import org.ssssssss.magicapi.flow.model.FlowDefinition;
 import org.ssssssss.magicapi.flow.model.FlowDefinitions;
 import org.ssssssss.magicapi.flow.model.FlowInfo;
+import org.ssssssss.magicapi.flow.msg.MsgTriggerNodeHandler;
+import org.ssssssss.magicapi.flow.trigger.TriggerNodeHandler;
 import org.ssssssss.magicapi.flow.support.FlowJson;
 import org.ssssssss.magicapi.flow.support.FlowVariables;
 import org.ssssssss.magicapi.upload.resource.UploadChannelEncryptor;
@@ -118,7 +120,8 @@ public class FlowPackageService {
 		List<Map<String, Object>> flowItems = new ArrayList<>();
 		List<Map<String, Object>> channelItems = new ArrayList<>();
 		try (ZipOutputStream zip = new ZipOutputStream(bytes, StandardCharsets.UTF_8)) {
-			for (FlowInfo flow : flows) {
+			for (FlowInfo original : flows) {
+				FlowInfo flow = tokensAsVariables(original, declared);
 				String file = "flows/" + flow.getId() + ".ms";
 				put(zip, file, flowStorage.write(flow));
 				Map<String, Object> item = new LinkedHashMap<>();
@@ -210,6 +213,37 @@ public class FlowPackageService {
 		return variable;
 	}
 
+	/**
+	 * 触发节点（HTTP、消息）上直接写的令牌导出为加密差异项「流程路径.token」，各医院导入时分别填写
+	 */
+	private static FlowInfo tokensAsVariables(FlowInfo flow, Map<String, Map<String, Object>> declared) {
+		FlowDefinition definition;
+		try {
+			definition = FlowDefinitions.parse(flow.getScript());
+		} catch (RuntimeException e) {
+			return flow;
+		}
+		boolean changed = false;
+		for (FlowDefinition.Node node : definition.getNodes()) {
+			if (!TriggerNodeHandler.Http.TYPE.equals(node.getType()) && !MsgTriggerNodeHandler.TYPE.equals(node.getType())) {
+				continue;
+			}
+			Object token = node.getConfig().get("token");
+			if (token instanceof String && !((String) token).trim().isEmpty() && !FlowVariables.REFERENCE.matcher(((String) token).trim()).matches()) {
+				String name = StringUtils.defaultIfBlank(flow.getPath(), flow.getId()).replaceAll("[^\\w\\-.\\u4e00-\\u9fa5]", "-") + ".token";
+				node.getConfig().put("token", "${var." + name + "}");
+				declare(declared, name, true, "流程「" + flow.getName() + "」的接收令牌");
+				changed = true;
+			}
+		}
+		if (!changed) {
+			return flow;
+		}
+		FlowInfo copy = flow.copy();
+		copy.setScript(FlowDefinitions.toJson(definition));
+		return copy;
+	}
+
 	private static Set<String> channelsOf(FlowInfo flow) {
 		Set<String> names = new LinkedHashSet<>();
 		try {
@@ -218,6 +252,10 @@ public class FlowPackageService {
 				Object channel = node.getConfig().get("channel");
 				if (CallNodeHandler.TYPE.equals(node.getType()) && channel != null && StringUtils.isNotBlank(channel.toString())) {
 					names.add(channel.toString().trim());
+				}
+				Object callback = node.getConfig().get("callbackChannel");
+				if (MsgTriggerNodeHandler.TYPE.equals(node.getType()) && callback != null && StringUtils.isNotBlank(callback.toString())) {
+					names.add(callback.toString().trim());
 				}
 			}
 		} catch (RuntimeException e) {
