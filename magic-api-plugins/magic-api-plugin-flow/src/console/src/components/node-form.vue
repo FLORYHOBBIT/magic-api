@@ -2,7 +2,7 @@
 	<div class="mf-form">
 		<template v-for="field in visibleFields" :key="field.key">
 			<div class="mf-field">
-				<label class="mf-label">{{ field.label }}</label>
+				<label v-if="field.label" class="mf-label">{{ field.label }}</label>
 				<select v-if="field.type === 'select'" class="mf-input" :value="valueOf(field)" @change="set(field.key, $event.target.value)">
 					<option v-for="opt in options(field)" :key="opt[0]" :value="opt[0]">{{ opt[1] }}</option>
 				</select>
@@ -39,6 +39,12 @@
 					</div>
 					<span class="mf-add" @click="listAdd(field.key)">+ 添加</span>
 				</div>
+				<div v-else-if="field.type === 'action'" class="mf-actions">
+					<button v-for="b in field.buttons" :key="b.label" type="button" class="mf-button" :disabled="busy[field.key]" @click="runAction(field, b)">{{ b.label }}</button>
+					<span v-if="busy[field.key]" class="mf-help">处理中…</span>
+					<span v-else-if="actionResult[field.key]" :class="actionResult[field.key].error ? 'mf-error' : 'mf-ok'">{{ actionResult[field.key].text }}</span>
+				</div>
+				<pre v-else-if="field.type === 'preview'" :class="['mf-input', 'mf-code', 'mf-preview', previews[field.key] && previews[field.key].error ? 'mf-error' : '']">{{ previews[field.key] ? previews[field.key].text : '' }}</pre>
 				<input v-else class="mf-input" :placeholder="field.placeholder" :value="text(field.key)" @input="set(field.key, $event.target.value)"/>
 				<div v-if="field.help" class="mf-help">{{ field.help }}</div>
 			</div>
@@ -52,7 +58,7 @@
 	</div>
 </template>
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { nodeType } from '../service/node-types.js'
 
 const props = defineProps({
@@ -151,6 +157,38 @@ const listRemove = (key, index) => {
 	emit('change')
 }
 
+// 按钮字段：run(config) 返回提示文字（可为 Promise），抛出的文字显示为错误
+const busy = reactive({})
+const actionResult = reactive({})
+const runAction = async (field, button) => {
+	busy[field.key] = true
+	actionResult[field.key] = null
+	try {
+		const text = await button.run(config.value)
+		actionResult[field.key] = { text: text || '完成' }
+		emit('change')
+	} catch (e) {
+		actionResult[field.key] = { text: String(e && e.message ? e.message : e), error: true }
+	} finally {
+		busy[field.key] = false
+	}
+}
+
+// 预览字段：配置变化后 300ms 重新生成
+const previews = reactive({})
+let previewTimer = null
+const refreshPreviews = () => {
+	clearTimeout(previewTimer)
+	previewTimer = setTimeout(() => {
+		visibleFields.value.filter(f => f.type === 'preview').forEach(f => {
+			Promise.resolve(f.preview(config.value))
+				.then(text => { previews[f.key] = { text: text == null ? '' : String(text) } })
+				.catch(e => { previews[f.key] = { text: String(e && e.message ? e.message : e), error: true } })
+		})
+	}, 300)
+}
+watch(() => [props.node.id, JSON.stringify(config.value), visibleFields.value.some(f => f.type === 'preview')], refreshPreviews, { immediate: true })
+
 const applyRaw = value => {
 	try {
 		const parsed = JSON.parse(value || '{}')
@@ -185,4 +223,9 @@ const applyRaw = value => {
 .mf-head span { font-size: 11px; color: #888; }
 .mf-del { cursor: pointer; color: #E02424; width: 14px; text-align: center; }
 .mf-add { cursor: pointer; color: #2563EB; font-size: 12px; align-self: flex-start; }
+.mf-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.mf-button { padding: 2px 10px; font-size: 12px; cursor: pointer; border: 1px solid var(--magic-input-border-color, #bbb); border-radius: 2px; background: var(--magic-button-background, transparent); color: inherit; }
+.mf-button:disabled { opacity: .6; cursor: default; }
+.mf-ok { color: #059669; font-size: 11px; }
+.mf-preview { margin: 0; min-height: 22px; opacity: .85; }
 </style>

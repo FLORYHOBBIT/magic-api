@@ -10,6 +10,8 @@
 | 表对表同步 | 定时 | 增量读取源库 → 写入目标表（有则更新、无则插入） |
 | 消息中心 | 消息 | 院内系统推送消息（HTTP / WebService）→ 入库后立即回执 → 按类型异步消费，失败重试、死信、顺序、回调、告警，见[消息中心](#消息中心) |
 
+任一流程中都可以用「调用存储过程」节点调用 HIS 包里的过程或函数，接口脚本中也可用 `proc` 模块，见[调用存储过程](#调用存储过程)。
+
 流程和接口、函数一样存放在 magic-api 工作目录（`flow/` 下），参与 magic-api 的导入导出、备份、Git 同步。
 
 ## 引入
@@ -40,7 +42,7 @@
 ## 编辑器
 
 - **画布**（基于 [LogicFlow](https://github.com/didi/LogicFlow) 2.x，Apache-2.0，打包进插件 js，内网离线可用）：左侧节点面板拖入或点击，从节点右侧蓝点拖出成功/条件连线，从底部红点拖出失败连线；选中节点或连线在右侧配置。先点一下画布后可用快捷键：Delete / Backspace 删除，Ctrl+Z / Ctrl+Y 撤销重做，Ctrl+C / Ctrl+V 复制粘贴；Ctrl + 滚轮缩放，拖动空白处平移，「框选」后拖出矩形多选，拖动时有对齐线；「自动排列」「适应画布」「JSON 源码」可直接编辑定义。
-- **从模板生成**：HTTP 查询接口、WebService 服务、定时上传并回写、表对表同步、消息消费（查表 / 回查接口），填几个参数生成流程骨架。
+- **从模板生成**：HTTP 查询接口、WebService 服务、定时上传并回写、表对表同步、消息消费（查表 / 回查接口）、HTTP 调用存储过程，填几个参数生成流程骨架。
 - **执行测试**（Ctrl+Q）：用编辑器中的定义（含未保存修改）真实执行一次，**会访问数据库、调用外部系统**。节点上显示执行顺序与耗时，底部「调试运行」可看每个节点的输出。
 - **集成流程信息**：启用（启用后才注册 HTTP / WebService / 定时）、名称、路径、说明。
 - **运行状态**：已注册的地址或 cron、注册失败原因（如路径冲突）、最近运行记录；定时流程另有断点、执行记录、失败批次，可「立即执行」「补传失败批次」「清除断点」。
@@ -159,6 +161,61 @@ SQL Server 把 `VARCHAR2(n CHAR)` 换成 `NVARCHAR(n)`、`NUMBER(19)` 换成 `BI
 
 导出配置包时，消息触发节点上直接写的令牌导出为加密差异项 `流程路径.token`，回调用的外部连接地址导出为 `连接名.url`，各医院导入时填写。
 
+## 调用存储过程
+
+「调用存储过程」节点（以及脚本模块 `proc`）调用数据库里的过程或函数，按参数类型绑定入参、读取出参，适用于 Oracle 11g 及以上。对应 db-api 中「过程 + CLOB 出参」类接口，并支持多个出参、游标出参和函数返回值。
+
+```mermaid
+flowchart LR
+  A[HTTP 接口] --> B["调用存储过程<br/>zhis4_java_inteface.op_invoke"] --> C["返回 p1.rb_out_parm"]
+```
+
+**两种写法**
+
+- 表单（默认）：填过程名（`过程`、`包.过程`、`用户.包.过程`）和参数表，点「读取参数」按 `ALL_ARGUMENTS` 自动填写参数名、方向、类型（已填的值保留）。生成按名传参的调用 `begin pkg.p(a => ?, b => ?); end;`，值为空的入参不传，由过程使用默认值；要传空值写 `null`。填了「函数返回类型」时生成 `begin ? := pkg.f(...); end;`，返回值在 `节点id.return`。
+- 手写语句：`begin pkg.p(:a, :b); end;` 或 `{call pkg.p(:a, :b)}`，`:参数名` 引用参数表。适合表单覆盖不到的情况（如先赋值再调用）。同一参数在语句中出现多次时每处单独绑定，块内要复用请先赋给局部变量。
+
+表单下方实时显示生成的语句；过程名、参数名只允许标识符，所有值都通过绑定变量传入。
+
+**参数**
+
+| 配置 | 说明 |
+| --- | --- |
+| `name` | 参数名（表单为过程的形参名） |
+| `mode` | `in`（默认） / `out` / `inout` |
+| `type` | `varchar`（默认） / `number` / `integer` / `date` / `timestamp` / `clob` / `blob` / `cursor` |
+| `value` | 入参值，表达式，如 `input.body`、`'getHospitalInfo'`、`q1[0].pid` |
+| `parse` | 出参处理：`string`（默认，原文） / `json`（解析为对象） / `xml`（解析为 `{根元素: 内容}`） |
+
+节点其他配置：`datasource`（空为主数据源）、`mode`（form / sql）、`name`、`sql`、`returnType`、`returnParse`、`columnCase`（游标列名，默认 lower）、`timeout`（秒）。
+
+- `clob` 入参总是以临时 CLOB 绑定，不受 11g 的 32k 字符串限制；`date` / `timestamp` 入参可以是日期或 `yyyy-MM-dd HH:mm:ss`、`yyyy-MM-dd`、`yyyyMMdd` 等字符串。
+- `cursor` 只能是出参，读取为行列表；`clob` 出参读取为字符串后按 `parse` 处理，解析失败时报出参数名和内容开头。
+- 不支持 PL/SQL `BOOLEAN`、记录、集合、对象类型的参数（「读取参数」会提示），请写一个包装过程或用手写语句。
+- 数据库错误原样显示，如 `调用存储过程失败：ORA-20001: 患者不存在（语句：begin pkg.p(?, ?); end;）`；接了失败连线时可用 `error.message` 返回给调用方。
+
+**输出与返回**：节点输出为出参 Map，如 `p1.rb_out_parm`、`p1.code`、`p1.rows[0].pat_name`。返回节点写 `p1.rb_out_parm` 时原样返回报文（HTTP 接口「响应格式」选 XML / 文本 / 自动），写 `{code: 0, data: p1}` 时返回包装后的 JSON，每个接口自己选。
+
+**脚本模块**（接口、函数中 `import proc`；原样返回用 `import response`）：
+
+```js
+import proc
+import response
+// 按数据库参数定义自动注册出参；没给的入参有默认值时不传
+var r = proc.use('his').call('zhis4_java_inteface.op_invoke', {as_method: 'getHospitalInfo', ab_in_parm: body})
+return response.text(r.rb_out_parm)
+
+// 指定出参处理方式
+proc.call('pkg.query_patient', {pid: pid}, {rb_out_parm: 'json'})
+// 完整描述（格式同节点配置），如手写语句 + 游标
+proc.call({mode: 'sql', sql: 'begin pkg.q(:pid, :rows); end;', params: [{name: 'pid', value: pid}, {name: 'rows', mode: 'out', type: 'cursor'}]})
+// 查看参数定义
+proc.arguments('pkg.query_patient')
+```
+
+在 `db.transaction(...)` 中调用时与 db 模块使用同一连接和事务；过程内部自己 `commit` 的不受影响。参数定义缓存 5 分钟，编辑器「读取参数」会刷新缓存。
+
+**从 db-api 迁移**：db-api 中 `type=1` 的接口（语句最后一个 `?` 为 CLOB 出参）改为：HTTP 接口 → 调用存储过程（表单填过程名，点「读取参数」，入参值写 `input.参数名`，CLOB 出参处理选字符串）→ 返回 `p1.出参名`。模板「HTTP 调用存储过程」可直接生成这个骨架。
 ## 流程定义
 
 ```json
@@ -205,6 +262,7 @@ SQL Server 把 `VARCHAR2(n CHAR)` 换成 `NVARCHAR(n)`、`NUMBER(19)` 换成 `BI
 | `json` | JSON 转换 | `action`（parse / stringify）、`source`、`pretty` |
 | `validate` | 数据校验 | `rules: [{field, rule, value, message}]`（required / maxLength / regex / expr）、`mode`（split / fail）；输出 `{valid, invalid, total, invalidCount}` |
 | `call` | 调用外部系统 | `channel`（外部连接名称）、`body`、`headers` / `params`（值中可用 `{{表达式}}`）、`forEach`、`retry`、`retryInterval`、`cacheSeconds` + `cacheKey`（登录取令牌）；输出 `{success, message, request, response, data, retryable}` |
+| `proc` | 调用存储过程 | 见[调用存储过程](#调用存储过程) |
 | `script` | 脚本 | `script`，magic-script，可用 db、http、log 等模块 |
 | `return` | 返回 | `value` 表达式 |
 
@@ -257,3 +315,5 @@ SQL Server 把 `VARCHAR2(n CHAR)` 换成 `NVARCHAR(n)`、`NUMBER(19)` 换成 `BI
 | 5018 | 配置包不正确 |
 | 5019 | 找不到场景模板 |
 | 5020 / 5021 | HTTP 地址冲突 / WebService 方法重复 |
+| 5022 / 5023 / 5024 | 消息类型重复 / 消息中心未启用 / 找不到消息 |
+| 5025 | 读取过程参数或生成调用语句失败（原因见提示） |

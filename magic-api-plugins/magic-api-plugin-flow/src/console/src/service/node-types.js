@@ -1,6 +1,9 @@
 // 节点类型目录：画布左侧的节点面板与右侧的配置表单都由这里生成。
 // 字段 type：text（默认）/ textarea / code / select / checkbox / kv（键值对象）/ list（对象列表，items 为子字段）
+// / action（按钮，buttons: [{label, run(config) => 提示文字}]）/ preview（只读，preview(config) => Promise<文字>）
 // show(config) 返回 false 时隐藏该字段；help 为字段下方的提示。
+
+import { call } from './context.js'
 
 const yesNo = [['', '默认'], ['true', '是'], ['false', '否']]
 
@@ -8,7 +11,7 @@ export const GROUPS = [
     { name: '触发', types: ['http', 'soap', 'timer', 'msg'] },
     { name: '数据', types: ['query', 'write', 'save'] },
     { name: '报文', types: ['map', 'nest', 'template', 'xml', 'json', 'validate'] },
-    { name: '调用', types: ['call'] },
+    { name: '调用', types: ['call', 'proc'] },
     { name: '控制', types: ['script', 'return'] }
 ]
 
@@ -246,7 +249,40 @@ export const NODE_TYPES = {
             { key: 'cacheKey', label: '缓存键' }
         ]
     },
-    script: {
+    proc: {
+        label: '调用存储过程', color: '#9333EA',
+        description: '调用数据库存储过程或函数（Oracle 11g 及以上）。输出为出参：节点id.参数名；函数返回值为 节点id.return，游标出参为行列表。' +
+            '返回节点写 p1.出参 可原样返回报文，写 {code: 0, data: p1} 为包装后的 JSON。',
+        fields: [
+            { key: 'datasource', label: '数据源', placeholder: '空为主数据源' },
+            { key: 'mode', label: '调用方式', type: 'select', default: 'form', options: [['form', '表单（过程名 + 参数表）'], ['sql', '手写语句']] },
+            { key: 'name', label: '过程名', placeholder: 'pkg_name.proc_name', show: c => c.mode !== 'sql', help: '过程、包.过程 或 用户.包.过程' },
+            {
+                key: 'sql', label: '调用语句', type: 'code', rows: 4, show: c => c.mode === 'sql',
+                placeholder: 'begin pkg.proc(:as_method, :ab_in_parm, :rb_out_parm); end;',
+                help: '用 :参数名 引用参数表；同一参数出现多次时每处单独绑定，块内要复用请先赋给局部变量'
+            },
+            {
+                key: '_args', type: 'action', show: c => c.mode !== 'sql', buttons: [{ label: '读取参数', run: readProcArguments }],
+                help: '按数据库中的参数定义填写参数表，已填写的值保留'
+            },
+            {
+                key: 'params', label: '参数', type: 'list', items: [
+                    { key: 'name', label: '参数名', width: '22%' },
+                    { key: 'mode', label: '方向', type: 'select', options: [['in', '入参'], ['out', '出参'], ['inout', '出入参']], width: '13%' },
+                    { key: 'type', label: '类型', type: 'select', options: ['varchar', 'number', 'integer', 'date', 'timestamp', 'clob', 'blob', 'cursor'], width: '16%' },
+                    { key: 'value', label: '值（表达式）', placeholder: "input.xxx、'常量'", width: '28%' },
+                    { key: 'parse', label: '出参处理', type: 'select', options: [['string', '字符串'], ['json', 'JSON'], ['xml', 'XML']], width: '13%' }
+                ],
+                help: '表单方式下值为空的入参不传（使用过程默认值）；要传空值请写 null。出参处理对字符串 / CLOB 出参生效'
+            },
+            { key: 'returnType', label: '函数返回类型', type: 'select', show: c => c.mode !== 'sql', options: [['', '不是函数'], 'varchar', 'number', 'integer', 'date', 'timestamp', 'clob', 'cursor'] },
+            { key: 'returnParse', label: '返回值处理', type: 'select', show: c => c.mode !== 'sql' && c.returnType, options: [['string', '字符串'], ['json', 'JSON'], ['xml', 'XML']] },
+            { key: 'columnCase', label: '游标列名', type: 'select', options: ['lower', 'camel', 'upper', 'raw'], default: 'lower' },
+            { key: 'timeout', label: '超时（秒）', placeholder: '0 不限制' },
+            { key: '_preview', label: '生成的语句', type: 'preview', preview: previewProc }
+        ]
+    },    script: {
         label: '脚本', color: '#475569',
         description: '执行 magic-script，返回值为节点输出。只用于表单节点覆盖不到的处理。',
         fields: [
@@ -274,4 +310,46 @@ export function defaultConfig(type) {
         }
     })
     return config
+}
+
+// 「调用存储过程」：读取参数定义填写参数表（保留已填的值与出参处理）
+async function readProcArguments(config) {
+    if (!config.name || !String(config.name).trim()) {
+        throw '请先填写过程名'
+    }
+    const overloads = await call('get', '/flow/proc/arguments', { datasource: config.datasource || '', name: config.name })
+    const args = overloads[0] || []
+    const old = {}
+    ;(Array.isArray(config.params) ? config.params : []).forEach(p => { if (p && p.name) old[String(p.name).toLowerCase()] = p })
+    const params = []
+    const unsupported = []
+    let returnType = ''
+    args.forEach(a => {
+        if (a.position === 0) {
+            returnType = a.type || ''
+            if (!a.type) unsupported.push('返回值 ' + a.dataType)
+            return
+        }
+        if (!a.type) {
+            unsupported.push(a.name + ' ' + a.dataType)
+        }
+        const prev = old[a.name] || {}
+        const row = { name: a.name, mode: a.mode, type: a.type || 'varchar' }
+        if (a.mode !== 'out' && prev.value !== undefined && prev.value !== '') row.value = prev.value
+        if (a.mode !== 'in') row.parse = prev.parse || 'string'
+        params.push(row)
+    })
+    config.params = params
+    if (returnType) config.returnType = returnType
+    else delete config.returnType
+    const notes = ['读取到 ' + params.length + ' 个参数' + (returnType ? '（函数，返回 ' + returnType + '）' : '')]
+    if (overloads.length > 1) notes.push('该过程有 ' + overloads.length + ' 个重载，已按第一个填写')
+    if (unsupported.length) notes.push('不支持的类型：' + unsupported.join('、') + '，请改用手写语句')
+    const defaulted = args.filter(a => a.defaulted && a.mode === 'in').map(a => a.name)
+    if (defaulted.length) notes.push('有默认值（不填则不传）：' + defaulted.join('、'))
+    return notes.join('；')
+}
+
+function previewProc(config) {
+    return call('json', '/flow/proc/preview', config)
 }

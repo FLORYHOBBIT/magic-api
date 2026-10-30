@@ -1,0 +1,32 @@
+{
+  "id": "http-proc",
+  "name": "HTTP 接口调用存储过程",
+  "description": "外部系统调用 HTTP 接口，由 HIS 包里的存储过程处理并返回出参（如 db-api 的「参数 + CLOB 出参」接口）。打开「调用存储过程」节点可点「读取参数」按数据库定义重新填写。",
+  "params": [
+    {"key": "datasource", "label": "数据源（空为主数据源）", "default": ""},
+    {"key": "name", "label": "过程名", "default": "zhis4_java_inteface.op_invoke"},
+    {"key": "method", "label": "方法名入参的值", "default": "input.method", "description": "magic-script 表达式，如 input.method 或 'getHospitalInfo'"},
+    {"key": "contentType", "label": "响应格式", "default": "xml", "options": ["xml", "json", "text", "auto"]}
+  ],
+  "definition": {
+    "nodes": [
+      {"id": "start", "type": "http", "name": "HTTP 请求", "config": {"method": "POST", "auth": "none", "contentType": "%{contentType}"}, "ui": {"x": 60, "y": 120}},
+      {"id": "p1", "type": "proc", "name": "调用存储过程", "config": {
+        "datasource": "%{datasource}", "mode": "form", "name": "%{name}", "columnCase": "lower",
+        "params": [
+          {"name": "as_method", "mode": "in", "type": "varchar", "value": "%{method}"},
+          {"name": "as_type", "mode": "in", "type": "varchar"},
+          {"name": "ab_in_parm", "mode": "in", "type": "clob", "value": "input.body"},
+          {"name": "rb_out_parm", "mode": "out", "type": "clob", "parse": "string"}
+        ]
+      }, "ui": {"x": 300, "y": 120}},
+      {"id": "end", "type": "return", "name": "原样返回出参", "config": {"value": "p1.rb_out_parm"}, "ui": {"x": 540, "y": 120}},
+      {"id": "fail", "type": "return", "name": "返回错误", "config": {"value": "{code: -1, message: error.message}"}, "ui": {"x": 540, "y": 260}}
+    ],
+    "edges": [
+      {"source": "start", "target": "p1"},
+      {"source": "p1", "target": "end"},
+      {"source": "p1", "target": "fail", "condition": "failure"}
+    ]
+  }
+}
