@@ -2,6 +2,8 @@ export default {
     flow: {
         title: 'Flow Info',
         name: 'Flow',
+        status: { title: 'Run Status' },
+        settings: { title: 'Integration Settings' },
         form: {
             name: 'Flow Name',
             path: 'Flow Path',

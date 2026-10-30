@@ -176,6 +176,7 @@ public class CallNodeHandler implements FlowNodeHandler {
 		Map<String, Object> output = new LinkedHashMap<>();
 		output.put("success", result.isSuccess());
 		output.put("message", result.getMessage());
+		output.put("request", body instanceof CharSequence ? body.toString() : FlowJson.stringify(body));
 		output.put("response", result.getResponse());
 		output.put("data", parse(info.getProtocol(), result.getResponse()));
 		output.put("retryable", !result.isSuccess() && result.isRetryable());

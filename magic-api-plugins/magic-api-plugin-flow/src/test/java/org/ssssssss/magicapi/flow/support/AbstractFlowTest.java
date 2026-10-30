@@ -36,6 +36,7 @@ import java.util.*;
 		"magic-api.banner=false",
 		"magic-api.upload.secret-key=test-secret"
 })
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 public abstract class AbstractFlowTest {
 
 	protected static final ObjectMapper MAPPER = new ObjectMapper();
@@ -59,6 +60,14 @@ public abstract class AbstractFlowTest {
 
 	protected MockMvc mvc() {
 		return MockMvcBuilders.webAppContextSetup(context).build();
+	}
+
+	/**
+	 * magic-api 把资源服务放在静态字段里；其他测试类启动、关闭的上下文会覆盖它，每个测试前改回当前上下文的
+	 */
+	@org.junit.jupiter.api.BeforeEach
+	void bindResourceService() {
+		context.getBean(MagicConfiguration.class).setMagicResourceService(context.getBean(MagicResourceService.class));
 	}
 
 	protected static MagicResourceService resources() {
