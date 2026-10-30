@@ -1,0 +1,68 @@
+{
+  "nodes": [
+    {
+      "id": "start", "type": "timer", "name": "取待上传盘存",
+      "config": {
+        "cron": "0 0/30 * * * ?",
+        "mode": "pending",
+        "sql": "select * from (\n  select coalesce((select max(a.status) from insur_goods_upload_record a\n                    where a.trade_type = '3501' and a.pk_key = v.pk_value and a.status <> '9'), '0') send_flag,\n         v.med_list_codg, v.fixmedins_hilist_id, v.fixmedins_hilist_name, v.rx_flag,\n         v.invdate, v.inv_cnt, v.manu_lotnum, v.fixmedins_bchno, v.manu_date, v.expy_end,\n         v.memo, v.drug_trac_codg, v.pk_value\n    from v_gjyhyb_goods_invinfo v\n) t where t.send_flag <> '1'",
+        "keyColumn": "pk_value",
+        "batchSize": "1",
+        "failurePolicy": "stop"
+      },
+      "ui": {"x": 40, "y": 140}
+    },
+    {
+      "id": "sign", "type": "script", "name": "组报文数据与签名",
+      "config": {
+        "script": "import 'java.util.UUID' as UUID;\nimport 'java.util.Date' as Date;\nimport 'java.security.MessageDigest' as MessageDigest;\nimport 'java.lang.System' as System;\nimport 'java.lang.Integer' as Integer;\n\nvar row = input.rows[0];\n// 报文数据：SQL 列去掉 send_flag 和回写键；日期转字符串；追加追溯码节点（与 PB 一致保留原字段）\nvar data = {};\nfor (key, val in row) {\n    if (key != 'send_flag' && key != 'pk_value') {\n        data[key] = val instanceof Date ? date_format(val, 'yyyy-MM-dd HH:mm:ss') : val;\n    }\n}\nif (row.drug_trac_codg != null && row.drug_trac_codg != '') {\n    data.drugtracinfo = [{drug_trac_codg: row.drug_trac_codg}];\n}\n// x-tif-signature = sha256(timestamp + secret + nonce + timestamp)\nvar stamp = '' + (System.currentTimeMillis() / 1000);\nvar nonce = UUID.randomUUID().toString();\nvar bytes = MessageDigest.getInstance('SHA-256').digest((stamp + '${var.gdyb.secretkey}' + nonce + stamp).getBytes('UTF-8'));\nvar signature = '';\nfor (b in bytes) {\n    var h = Integer.toHexString(b & 0xFF);\n    signature = signature + (h.length() == 1 ? '0' + h : h);\n}\nvar r4 = '000' + (System.nanoTime() % 10000);\nvar msgid = '${var.gdyb.fixmedins-code}' + date_format(now(), 'yyyyMMddHHmmss') + r4.substring(r4.length() - 4);\nreturn {row: row, data: data, timestamp: stamp, nonce: nonce, signature: signature, msgid: msgid};"
+      },
+      "ui": {"x": 260, "y": 140}
+    },
+    {
+      "id": "send", "type": "call", "name": "上传 3501",
+      "config": {
+        "channel": "gdyb",
+        "body": "{infno: '3501', msgid: sign.msgid, insuplc_admdvs: '${var.gdyb.admvs:440100}', mdtrtarea_admvs: '${var.gdyb.admvs:440100}', recer_admdvs: '', dev_no: '', dev_safe_info: '', signtype: 'S', cainfo: '', infver: '${var.gdyb.infver}', opter_type: '1', opter: '${var.gdyb.userid:magic-api}', opter_name: '${var.gdyb.fixmedins-name}', inf_time: date_format(now(), 'yyyy-MM-dd HH:mm:ss'), fixmedins_code: '${var.gdyb.fixmedins-code}', fixmedins_name: '${var.gdyb.fixmedins-name}', recer_sys_code: 'admit', sign_no: '', input: {invinfo: sign.data}}",
+        "headers": {
+          "x-tif-paasid": "${var.gdyb.paasid}",
+          "x-tif-signature": "{{sign.signature}}",
+          "x-tif-timestamp": "{{sign.timestamp}}",
+          "x-tif-nonce": "{{sign.nonce}}"
+        }
+      },
+      "ui": {"x": 480, "y": 140}
+    },
+    {
+      "id": "ok", "type": "save", "name": "回写成功",
+      "config": {
+        "table": "insur_goods_upload_record",
+        "mode": "upsert",
+        "keys": "trade_type, pk_key",
+        "rows": "{trade_type: '3501', pk_key: sign.row.pk_value, goods_code: sign.row.fixmedins_hilist_id, goods_name: sign.row.fixmedins_hilist_name, status: '1', in_parm: send.request, result_parm: send.response}"
+      },
+      "ui": {"x": 720, "y": 60}
+    },
+    {
+      "id": "failUpdate", "type": "write", "name": "失败次数+1",
+      "config": {
+        "sql": "update insur_goods_upload_record set status = '0', error_times = error_times + 1, result_parm = #{error.message} where trade_type = '3501' and pk_key = #{sign.row.pk_value} and status <> '9'"
+      },
+      "ui": {"x": 720, "y": 240}
+    },
+    {
+      "id": "failInsert", "type": "write", "name": "首次失败登记",
+      "config": {
+        "sql": "insert into insur_goods_upload_record (trade_type, pk_key, goods_code, goods_name, status, error_times, in_parm, result_parm) values ('3501', #{sign.row.pk_value}, #{sign.row.fixmedins_hilist_id}, #{sign.row.fixmedins_hilist_name}, '0', 1, #{error.output.request}, #{error.message})"
+      },
+      "ui": {"x": 960, "y": 240}
+    }
+  ],
+  "edges": [
+    {"source": "start", "target": "sign"},
+    {"source": "sign", "target": "send"},
+    {"source": "send", "target": "ok"},
+    {"source": "send", "target": "failUpdate", "condition": "failure"},
+    {"source": "failUpdate", "target": "failInsert", "condition": "prev.affected == 0"}
+  ]
+}

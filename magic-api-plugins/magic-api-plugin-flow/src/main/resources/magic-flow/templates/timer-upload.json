@@ -1,0 +1,28 @@
+{
+  "id": "timer-upload",
+  "name": "定时上传并回写",
+  "description": "定时查询未上传的数据，分批发送到外部系统，成功回写已上传标志，失败回写失败原因。",
+  "params": [
+    {"key": "cron", "label": "执行时间（cron）", "default": "0 0/10 * * * ?"},
+    {"key": "sql", "label": "待上传数据 SQL", "default": "select id, patient_id, amount from his_upload where upload_flag = '0'", "multiline": true},
+    {"key": "keyColumn", "label": "唯一递增字段", "default": "id"},
+    {"key": "batchSize", "label": "每批条数", "default": "100"},
+    {"key": "channel", "label": "外部连接名称", "default": "province"},
+    {"key": "body", "label": "请求报文（表达式）", "default": "{orgCode: '${var.orgCode}', total: input.rows.size(), list: input.rows}", "description": "input.rows 为本批数据"},
+    {"key": "successSql", "label": "成功回写 SQL", "default": "update his_upload set upload_flag = '1', upload_time = now() where id = #{row.id}", "multiline": true},
+    {"key": "failureSql", "label": "失败回写 SQL", "default": "update his_upload set upload_flag = '2', upload_msg = #{error.message} where id = #{row.id}", "multiline": true}
+  ],
+  "definition": {
+    "nodes": [
+      {"id": "start", "type": "timer", "name": "定时读取", "config": {"cron": "%{cron}", "mode": "pending", "sql": "%{sql}", "keyColumn": "%{keyColumn}", "batchSize": "%{batchSize}", "retry": "2", "failurePolicy": "stop"}, "ui": {"x": 60, "y": 120}},
+      {"id": "send", "type": "call", "name": "上传", "config": {"channel": "%{channel}", "body": "%{body}"}, "ui": {"x": 300, "y": 120}},
+      {"id": "ok", "type": "write", "name": "回写成功", "config": {"forEach": "input.rows", "sql": "%{successSql}"}, "ui": {"x": 540, "y": 60}},
+      {"id": "ng", "type": "write", "name": "回写失败", "config": {"forEach": "input.rows", "sql": "%{failureSql}"}, "ui": {"x": 540, "y": 220}}
+    ],
+    "edges": [
+      {"source": "start", "target": "send"},
+      {"source": "send", "target": "ok"},
+      {"source": "send", "target": "ng", "condition": "failure"}
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "http-query",
+  "name": "对外 HTTP 查询接口",
+  "description": "外部系统按参数查询 HIS 数据：HTTP 请求 → 查库 → 按约定格式返回。",
+  "params": [
+    {"key": "method", "label": "请求方法", "default": "GET", "options": ["GET", "POST"]},
+    {"key": "sql", "label": "查询 SQL（参数用 #{input.参数名}）", "default": "select * from his_patient where patient_id = #{input.patientId}", "multiline": true},
+    {"key": "result", "label": "返回内容", "default": "{code: 0, message: 'success', data: q}", "description": "magic-script 表达式，q 为查询结果"}
+  ],
+  "definition": {
+    "nodes": [
+      {"id": "start", "type": "http", "name": "HTTP 请求", "config": {"method": "%{method}", "auth": "none"}, "ui": {"x": 60, "y": 120}},
+      {"id": "q", "type": "query", "name": "查询", "config": {"sql": "%{sql}", "result": "list"}, "ui": {"x": 300, "y": 120}},
+      {"id": "end", "type": "return", "name": "返回", "config": {"value": "%{result}"}, "ui": {"x": 540, "y": 120}},
+      {"id": "fail", "type": "return", "name": "返回错误", "config": {"value": "{code: -1, message: error.message}"}, "ui": {"x": 540, "y": 260}}
+    ],
+    "edges": [
+      {"source": "start", "target": "q"},
+      {"source": "q", "target": "end"},
+      {"source": "q", "target": "fail", "condition": "failure"}
+    ]
+  }
+}

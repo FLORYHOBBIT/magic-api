@@ -1,0 +1,23 @@
+{
+  "id": "table-sync",
+  "name": "表对表同步",
+  "description": "定时从源库按递增字段增量读取，写入目标库的表（有则更新、无则插入），每批一个事务。",
+  "params": [
+    {"key": "cron", "label": "执行时间（cron）", "default": "0 0/5 * * * ?"},
+    {"key": "sourceDatasource", "label": "源数据源 key（空为主数据源）", "default": ""},
+    {"key": "sql", "label": "源数据 SQL", "default": "select id, code, name, update_time from his_dict", "multiline": true},
+    {"key": "keyColumn", "label": "唯一递增字段", "default": "id"},
+    {"key": "targetDatasource", "label": "目标数据源 key", "default": "target"},
+    {"key": "table", "label": "目标表", "default": "dict_copy"},
+    {"key": "keys", "label": "目标表主键（逗号分隔）", "default": "id"}
+  ],
+  "definition": {
+    "nodes": [
+      {"id": "start", "type": "timer", "name": "增量读取", "config": {"cron": "%{cron}", "mode": "keyset", "datasource": "%{sourceDatasource}", "sql": "%{sql}", "keyColumn": "%{keyColumn}", "batchSize": "500", "retry": "1"}, "ui": {"x": 60, "y": 120}},
+      {"id": "save", "type": "save", "name": "写入目标表", "config": {"datasource": "%{targetDatasource}", "table": "%{table}", "keys": "%{keys}", "rows": "input.rows", "mode": "upsert", "transaction": true}, "ui": {"x": 320, "y": 120}}
+    ],
+    "edges": [
+      {"source": "start", "target": "save"}
+    ]
+  }
+}
