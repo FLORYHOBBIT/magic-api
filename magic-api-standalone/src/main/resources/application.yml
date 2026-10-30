@@ -1,0 +1,21 @@
+# 内置默认配置。部署时请修改 jar 同级目录下的 config/application.yml，那里的配置会覆盖这里。
+server:
+  port: 9999
+
+spring:
+  application:
+    name: magic-api-server
+  pid:
+    file: magic-api.pid
+
+magic-api:
+  web: /magic/web
+  resource:
+    type: file
+    location: ./data/magic-api
+  upload:
+    secret-key: ${UPLOAD_SECRET:}
+
+logging:
+  file:
+    name: logs/magic-api.log

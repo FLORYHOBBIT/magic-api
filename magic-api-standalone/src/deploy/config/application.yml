@@ -1,0 +1,40 @@
+# magic-api 服务配置（部署时修改此文件，修改后重启生效）
+# 端口在 start.cmd 中指定，这里的 server.port 不生效。
+
+magic-api:
+  # 管理界面入口：http://服务器IP:端口/magic/web
+  web: /magic/web
+  # 接口脚本存储位置（相对路径相对于 start.cmd 所在目录）
+  resource:
+    type: file
+    location: ./data/magic-api
+  # 管理界面登录账号。管理界面可以执行任意脚本，必须修改默认密码
+  security:
+    username: admin
+    password: changeme
+  upload:
+    # 通道密码的加密密钥。建议在服务器上配置系统环境变量 UPLOAD_SECRET，不要直接写在这里
+    secret-key: ${UPLOAD_SECRET:}
+    alert:
+      hospital: 测试医院
+
+# 主数据源（可选）。不配置 url 时服务也能启动，数据源可以在管理界面中在线添加。
+# 需要时取消注释并按实际修改：
+#spring:
+#  datasource:
+#    # Oracle
+#    url: jdbc:oracle:thin:@//127.0.0.1:1521/ORCL
+#    driver-class-name: oracle.jdbc.OracleDriver
+#    # SQL Server
+#    # url: jdbc:sqlserver://127.0.0.1:1433;databaseName=his;encrypt=false
+#    # driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+#    username: user
+#    password: password
+
+logging:
+  file:
+    name: logs/magic-api.log
+  logback:
+    rollingpolicy:
+      max-file-size: 50MB
+      max-history: 30
