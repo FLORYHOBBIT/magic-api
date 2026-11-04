@@ -49,13 +49,20 @@ class FlowEditorIntegrationTest {
 					.asText();
 			assertThat(groupId).isNotBlank();
 
-			// 2. 按编辑器格式保存流程：元数据 JSON + 分隔线 + 流程定义，整体 ROT13
-			String file = "{\"name\":\"结算查询\",\"path\":\"settle\",\"groupId\":\"" + groupId + "\",\"enabled\":true,\"description\":\"Task1 演示\"}"
-					+ "\r\n================================\r\n" + DEFINITION;
+			// 2. 按浏览器编辑器的真实协议保存：带 script 的完整 JSON → ROT13 → JSON 字符串。
+			FlowInfo file = new FlowInfo();
+			file.setName("结算查询");
+			file.setPath("settle");
+			file.setGroupId(groupId);
+			file.setEnabled(true);
+			file.setDescription("Task1 演示");
+			file.setScript(DEFINITION);
 			flowId = data(mvc.perform(post("/magic/web/resource/file/flow/save")
-					.contentType(MediaType.TEXT_PLAIN)
-					.content(ROT13Utils.encrypt(file)))).asText();
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(MAPPER.writeValueAsString(ROT13Utils.encrypt(MAPPER.writeValueAsString(file)))))).asText();
 			assertThat(flowId).isNotBlank();
+			JsonNode reopened = data(mvc.perform(get("/magic/web/resource/file/" + flowId)));
+			assertThat(reopened.get("script").asText()).isEqualTo(DEFINITION);
 
 			// 3. 定义不合法时拒绝保存
 			String broken = "{\"name\":\"坏流程\",\"path\":\"bad\",\"groupId\":\"" + groupId + "\"}"
