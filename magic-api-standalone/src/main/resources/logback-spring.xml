@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  只保留文件日志，去掉控制台 appender。
+  运行期日志统一写入 logging.file.name（logs/magic-api.log），
+  由 logging.logback.rollingpolicy.* 控制轮转；
+  stdout 仅剩启动 banner / 服务地址，启动脚本把 console.log 截断写入即可。
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/file-appender.xml"/>
+
+    <root level="INFO">
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>

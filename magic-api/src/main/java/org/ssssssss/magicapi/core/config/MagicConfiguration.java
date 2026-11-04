@@ -10,6 +10,7 @@ import org.ssssssss.magicapi.core.interceptor.AuthorizationInterceptor;
 import org.ssssssss.magicapi.core.interceptor.RequestInterceptor;
 import org.ssssssss.magicapi.core.service.MagicAPIService;
 import org.ssssssss.magicapi.backup.service.MagicBackupService;
+import org.ssssssss.magicapi.core.record.ExecutionRecordStore;
 import org.ssssssss.magicapi.core.service.MagicNotifyService;
 import org.ssssssss.magicapi.core.interceptor.ResultProvider;
 import org.ssssssss.magicapi.datasource.model.MagicDynamicDataSource;
@@ -55,6 +56,8 @@ public class MagicConfiguration {
 	private AuthorizationInterceptor authorizationInterceptor;
 
 	private MagicBackupService magicBackupService;
+
+	private static ExecutionRecordStore executionRecordStore;
 
 	private static MagicResourceService magicResourceService;
 
@@ -169,6 +172,14 @@ public class MagicConfiguration {
 
 	public void setMagicBackupService(MagicBackupService magicBackupService) {
 		this.magicBackupService = magicBackupService;
+	}
+
+	public static ExecutionRecordStore getExecutionRecordStore() {
+		return MagicConfiguration.executionRecordStore;
+	}
+
+	public void setExecutionRecordStore(ExecutionRecordStore executionRecordStore) {
+		MagicConfiguration.executionRecordStore = executionRecordStore;
 	}
 
 	public MagicDynamicDataSource getMagicDynamicDataSource() {

@@ -9,11 +9,14 @@ import org.ssssssss.magicapi.core.config.MagicConfiguration;
 import org.ssssssss.magicapi.core.interceptor.Authorization;
 import org.ssssssss.magicapi.core.model.JsonBean;
 import org.ssssssss.magicapi.core.model.MagicEntity;
+import org.ssssssss.magicapi.core.record.ExecutionRecord;
+import org.ssssssss.magicapi.core.record.ExecutionRecordStore;
 import org.ssssssss.magicapi.core.web.MagicController;
 import org.ssssssss.magicapi.core.web.MagicExceptionHandler;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 上传通道的界面接口
@@ -46,6 +49,19 @@ public class UploadChannelController extends MagicController implements MagicExc
 		notNull(entity, FILE_NOT_FOUND);
 		isTrue(entity instanceof UploadChannelInfo, FILE_NOT_FOUND);
 		List<Map<String, Object>> sample = rows == null || rows.trim().isEmpty() ? null : MAPPER.readValue(rows, ROWS);
-		return new JsonBean<>(provider.test((UploadChannelInfo) entity, sample));
+		long startTime = System.currentTimeMillis();
+		boolean success = false;
+		String message = null;
+		try {
+			Map<String, Object> result = provider.test((UploadChannelInfo) entity, sample);
+			success = Boolean.TRUE.equals(result.get("success"));
+			message = success ? null : Objects.toString(result.get("message"), null);
+			return new JsonBean<>(result);
+		} catch (Exception e) {
+			message = ExecutionRecordStore.messageOf(e);
+			throw e;
+		} finally {
+			ExecutionRecordStore.record(new ExecutionRecord(entity.getId(), "upload", entity.getName(), "test", startTime, System.currentTimeMillis() - startTime, success, message));
+		}
 	}
 }

@@ -2,6 +2,9 @@ export default {
     task: {
         title: 'Task Info',
         name: 'Task',
+        record: {
+            title: 'Run Records'
+        },
         form: {
             name: 'Task Name',
             path: 'Task Path',

@@ -103,7 +103,9 @@ echo [INFO] Port     : %SERVER_PORT%
 echo [INFO] Home     : %APP_HOME%
 echo [INFO] Starting...
 
-start "magic-api" /b "%JAVAW%" %JAVA_OPTS% %SW_OPTS% -Dfile.encoding=UTF-8 -jar "%APP_JAR%" --server.port=%SERVER_PORT% >>"%APP_HOME%\logs\console.log" 2>&1
+REM 运行期日志由 logback 写入 logs\magic-api.log（自动轮转），
+REM console.log 只保留启动信息与 JVM 错误，每次启动截断，避免长期运行无限增长
+start "magic-api" /b "%JAVAW%" %JAVA_OPTS% %SW_OPTS% -Dfile.encoding=UTF-8 -jar "%APP_JAR%" --server.port=%SERVER_PORT% >"%APP_HOME%\logs\console.log" 2>&1
 
 REM ---- wait until the port is listening ----
 set /a WAITED=0

@@ -9,6 +9,8 @@ import org.springframework.scheduling.support.CronTrigger;
 import org.ssssssss.magicapi.core.config.MagicConfiguration;
 import org.ssssssss.magicapi.core.event.FileEvent;
 import org.ssssssss.magicapi.core.event.GroupEvent;
+import org.ssssssss.magicapi.core.record.ExecutionRecord;
+import org.ssssssss.magicapi.core.record.ExecutionRecordStore;
 import org.ssssssss.magicapi.core.service.AbstractMagicDynamicRegistry;
 import org.ssssssss.magicapi.core.service.MagicResourceStorage;
 import org.ssssssss.magicapi.task.model.TaskInfo;
@@ -56,6 +58,9 @@ public class TaskMagicDynamicRegistry extends AbstractMagicDynamicRegistry<TaskI
 				CronTrigger trigger = new CronTrigger(entity.getCron());
 				CronTask cronTask = new CronTask(() -> {
 					if (entity.isEnabled()) {
+						long startTime = System.currentTimeMillis();
+						boolean success = true;
+						String message = null;
 						try {
 							if (showLog) {
 								logger.info("定时任务:[{}]开始执行", scriptName);
@@ -64,11 +69,14 @@ public class TaskMagicDynamicRegistry extends AbstractMagicDynamicRegistry<TaskI
 							magicScriptContext.setScriptName(scriptName);
 							ScriptManager.executeScript(entity.getScript(), magicScriptContext);
 						} catch (Exception e) {
+							success = false;
+							message = ExecutionRecordStore.messageOf(e);
 							logger.error("定时任务执行出错", e);
 						} finally {
 							if (showLog) {
 								logger.info("定时任务:[{}]执行完毕", scriptName);
 							}
+							ExecutionRecordStore.record(new ExecutionRecord(entity.getId(), "task", scriptName, "cron", startTime, System.currentTimeMillis() - startTime, success, message));
 						}
 					}
 				}, trigger);
