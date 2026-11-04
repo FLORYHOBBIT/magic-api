@@ -81,35 +81,7 @@
 				<span v-if="jsonError" class="mf-tip error">{{ jsonError }}</span>
 			</div>
 		</div>
-		<div v-if="templates.open" class="mf-mask" @mousedown.self="templates.open = false">
-			<div class="mf-dialog">
-				<div class="mf-props-title">从模板生成</div>
-				<div class="mf-dialog-body">
-					<div class="mf-template-list">
-						<div v-for="t in templates.list" :key="t.id" class="mf-template" :class="{ selected: templates.current && templates.current.id === t.id }" @click="chooseTemplate(t)">
-							<b>{{ t.name }}</b>
-							<div class="mf-help">{{ t.description }}</div>
-						</div>
-					</div>
-					<div class="mf-template-params" v-if="templates.current">
-						<div v-for="p in templates.current.params" :key="p.key" class="mf-field">
-							<label class="mf-label">{{ p.label }}</label>
-							<select v-if="p.options" class="mf-input" v-model="templates.values[p.key]">
-								<option v-for="o in p.options" :key="o" :value="o">{{ o }}</option>
-							</select>
-							<textarea v-else-if="p.multiline" class="mf-input mf-code" rows="4" v-model="templates.values[p.key]"></textarea>
-							<input v-else class="mf-input" v-model="templates.values[p.key]"/>
-							<div v-if="p.description" class="mf-help">{{ p.description }}</div>
-						</div>
-					</div>
-				</div>
-				<div class="mf-json-actions">
-					<button class="mf-btn" :disabled="!templates.current" @click="applyTemplate">生成（替换当前流程）</button>
-					<button class="mf-btn" @click="templates.open = false">取消</button>
-					<span v-if="templates.error" class="mf-tip error">{{ templates.error }}</span>
-				</div>
-			</div>
-		</div>
+		<flow-template-dialog v-if="templates.open" :state="templates" @choose="chooseTemplate" @apply="applyTemplate" @close="templates.open = false"/>
 	</div>
 </template>
 <script setup>
@@ -118,6 +90,7 @@ import LogicFlow from '@logicflow/core'
 import { SelectionSelect } from '@logicflow/extension/es/components/selection-select'
 import '@logicflow/core/dist/index.css'
 import NodeForm from './node-form.vue'
+import FlowTemplateDialog from './flow-template-dialog.vue'
 import { GROUPS, NODE_TYPES, nodeType, defaultConfig } from '../service/node-types.js'
 import { NODE, EDGE, NODE_W, NODE_H, register, toGraph, fromGraph, setTraces, edgeKind, edgeLabel, isDefault, isFailure } from '../service/logicflow.js'
 import { debugState } from '../service/debug-state.js'
@@ -142,7 +115,7 @@ const tipType = ref('')
 const boxSelect = ref(false)
 const selectedNode = ref(null)
 const selectedEdge = ref(null)
-const templates = reactive({ open: false, list: [], current: null, values: {}, error: '' })
+const templates = reactive({ open: false, list: [], current: null, values: {}, error: '', loading: false, generating: false })
 let lastScript = null
 let loading = false
 
@@ -622,10 +595,13 @@ const validate = () => {
 const openTemplates = () => {
 	templates.open = true
 	templates.error = ''
+	templates.loading = true
 	call('get', '/flow/templates').then(list => {
 		templates.list = list || []
 	}).catch(message => {
 		templates.error = message
+	}).finally(() => {
+		templates.loading = false
 	})
 }
 
@@ -639,9 +615,12 @@ const chooseTemplate = t => {
 }
 
 const applyTemplate = () => {
+	if (!templates.current || templates.generating) return
 	if (lf.value.graphModel.nodes.length > 0 && !window.confirm('生成的流程会替换当前画布中的全部节点，确定吗？')) {
 		return
 	}
+	templates.generating = true
+	templates.error = ''
 	call('post', '/flow/template/apply', { id: templates.current.id, params: JSON.stringify(templates.values) }).then(definition => {
 		jsonMode.value = false
 		load(definition)
@@ -652,6 +631,8 @@ const applyTemplate = () => {
 		showTip('已按模板「' + templates.current.name + '」生成，检查各节点配置后保存', 'ok')
 	}).catch(message => {
 		templates.error = message
+	}).finally(() => {
+		templates.generating = false
 	})
 }
 </script>
@@ -690,14 +671,6 @@ const applyTemplate = () => {
 .mf-json { flex: 1; display: flex; flex-direction: column; padding: 6px; gap: 6px; overflow: hidden; }
 .mf-json-text { flex: 1; resize: none; }
 .mf-json-actions { display: flex; align-items: center; gap: 6px; }
-.mf-mask { position: absolute; inset: 0; background: rgba(0, 0, 0, .3); display: flex; align-items: center; justify-content: center; z-index: 10; }
-.mf-dialog { width: 760px; max-width: 95%; max-height: 90%; display: flex; flex-direction: column; gap: 8px; padding: 10px;
-	background: var(--magic-background, #fff); border: 1px solid #94A3B8; border-radius: 4px; }
-.mf-dialog-body { display: flex; gap: 10px; overflow: hidden; flex: 1; min-height: 300px; }
-.mf-template-list { width: 240px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
-.mf-template { padding: 6px; border: 1px solid var(--magic-input-border-color, #ccc); border-radius: 3px; cursor: pointer; }
-.mf-template.selected { border-color: #2563EB; background: rgba(37, 99, 235, .08); }
-.mf-template-params { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
 </style>
 <style>
 /* LogicFlow 节点卡片（渲染在 foreignObject 中，不能用 scoped） */
