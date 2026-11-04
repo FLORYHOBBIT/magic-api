@@ -113,6 +113,7 @@ public class DataSourceInfo extends MagicEntity {
 		DataSourceInfo dataSourceInfo = new DataSourceInfo();
 		super.simple(dataSourceInfo);
 		dataSourceInfo.setKey(this.key);
+		dataSourceInfo.setPrimary(this.primary);
 		return dataSourceInfo;
 	}
 
