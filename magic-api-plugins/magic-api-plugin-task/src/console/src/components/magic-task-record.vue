@@ -1,26 +1,28 @@
 <template>
-	<div class="magic-task-record">
+	<div class="magic-task-record execution-record-panel">
 		<div class="bar">
-			<button class="btn" @click="refresh">刷新</button>
+			<button class="btn" :disabled="loading" @click="refresh">{{ loading ? '刷新中…' : '刷新' }}</button>
+			<div class="record-stats"><span>最近 {{ records.length }} 次执行</span><span>成功 {{ records.filter(r => r.success).length }}</span><span>失败 {{ records.filter(r => !r.success).length }}</span></div>
+			<label class="record-filter">结果<select v-model="resultFilter" aria-label="筛选执行结果"><option value="all">全部结果</option><option value="success">成功</option><option value="failure">失败</option></select></label>
 			<span class="tip" :class="tipType">{{ tip }}</span>
 		</div>
 		<div v-if="!currentId" class="empty">保存后可查看执行记录</div>
-		<div v-else-if="records.length === 0" class="empty">暂无执行记录</div>
-		<table v-else>
+		<div v-else-if="visibleRecords.length === 0" class="empty">{{ records.length ? '没有符合条件的执行记录' : '暂无执行记录' }}</div>
+		<div v-else class="record-table-scroll"><table>
 			<thead>
-				<tr><th>时间</th><th>来源</th><th>结果</th><th>耗时</th><th>说明</th><th>日志</th></tr>
+				<tr><th>执行时间</th><th>触发来源</th><th>执行结果</th><th class="record-duration">耗时</th><th>说明</th><th>操作</th></tr>
 			</thead>
 			<tbody>
-				<tr v-for="(r, i) in records" :key="i">
-					<td>{{ time(r.startTime) }}</td>
-					<td>{{ sourceName(r.source) }}</td>
-					<td :class="r.success ? 'ok' : 'error'">{{ r.success ? '成功' : '失败' }}</td>
-					<td>{{ r.costMillis }} ms</td>
-					<td class="msg" :title="r.message || ''">{{ r.message || '' }}</td>
-					<td><button v-if="r.logAvailable" class="btn" @click="showRecordLog(currentId, r.runId)">查看日志</button><span v-else>未采集</span></td>
+				<tr v-for="(r, i) in visibleRecords" :key="r.runId || i">
+					<td class="record-time">{{ time(r.startTime) }}</td>
+					<td><span class="record-source">{{ sourceName(r.source) }}</span></td>
+					<td><span class="record-result" :class="r.success ? 'ok' : 'error'">{{ r.success ? '成功' : '失败' }}</span></td>
+					<td class="record-duration">{{ r.costMillis }} <span class="record-muted">ms</span></td>
+					<td class="msg" :title="r.message || ''"><span v-if="r.message">{{ r.message }}</span><span v-else class="record-muted">—</span></td>
+					<td><button v-if="r.logAvailable" class="btn btn-link" @click="showRecordLog(currentId, r.runId)">查看日志 →</button><span v-else class="record-muted">未采集</span></td>
 				</tr>
 			</tbody>
-		</table>
+		</table></div>
 	</div>
 </template>
 <script setup>
@@ -30,6 +32,9 @@ import { fetchRecords, showRecordLog } from '../service/record.js'
 const info = inject('info')
 const opened = inject('opened')
 const records = ref([])
+const loading = ref(false)
+const resultFilter = ref('all')
+const visibleRecords = computed(() => records.value.filter(row => resultFilter.value === 'all' || row.success === (resultFilter.value === 'success')))
 const tip = ref('')
 const tipType = ref('')
 const currentId = computed(() => unref(opened)?.type === 'task' ? (unref(info)?.id || '') : '')
@@ -59,6 +64,7 @@ const refresh = () => {
 	if (pendingId === id) return
 	pendingId = id
 	const version = ++sequence
+	loading.value = true
 	fetchRecords(id).then(list => {
 		if (version !== sequence || id !== currentId.value) return
 		records.value = list
@@ -68,11 +74,12 @@ const refresh = () => {
 		tip.value = message
 		tipType.value = 'error'
 	}).finally(() => {
+		if (version === sequence) loading.value = false
 		if (pendingId === id) pendingId = ''
 	})
 }
 
-watch(currentId, () => { sequence++; pendingId = ''; records.value = []; refresh() }, { immediate: true })
+watch(currentId, () => { sequence++; pendingId = ''; loading.value = false; resultFilter.value = 'all'; records.value = []; refresh() }, { immediate: true })
 onMounted(() => {
 	timer = setInterval(() => { if (!document.hidden) refresh() }, 10000)
 })
