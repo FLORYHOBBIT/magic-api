@@ -21,6 +21,7 @@ export default function (bus, constants, $i, Message, request) {
                 withCredentials: true
             }
             bus.$emit(Message.SWITCH_TOOLBAR, 'log')
+            bus.$emit('execution-log:live')
             requestConfig.headers[constants.HEADER_REQUEST_CLIENT_ID] = constants.CLIENT_ID
             requestConfig.headers[constants.HEADER_REQUEST_SCRIPT_ID] = opened.item.id
             requestConfig.headers[constants.HEADER_MAGIC_TOKEN] = constants.HEADER_MAGIC_TOKEN_VALUE

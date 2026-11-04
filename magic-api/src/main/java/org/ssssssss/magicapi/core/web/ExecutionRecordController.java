@@ -6,6 +6,10 @@ import org.ssssssss.magicapi.core.config.MagicConfiguration;
 import org.ssssssss.magicapi.core.model.JsonBean;
 import org.ssssssss.magicapi.core.record.ExecutionRecord;
 import org.ssssssss.magicapi.core.record.ExecutionRecordStore;
+import org.ssssssss.magicapi.core.record.ExecutionLog;
+import org.ssssssss.magicapi.core.interceptor.Authorization;
+import org.ssssssss.magicapi.core.model.MagicEntity;
+import org.ssssssss.magicapi.core.servlet.MagicHttpServletRequest;
 
 import java.util.Collections;
 import java.util.List;
@@ -24,11 +28,27 @@ public class ExecutionRecordController extends MagicController implements MagicE
 	 */
 	@GetMapping("/execution-records")
 	@ResponseBody
-	public JsonBean<List<ExecutionRecord>> list(String id) throws Exception {
+	public JsonBean<List<ExecutionRecord>> list(String id, MagicHttpServletRequest request) throws Exception {
+		checkView(id, request);
 		ExecutionRecordStore store = MagicConfiguration.getExecutionRecordStore();
 		if (store == null) {
 			return new JsonBean<>(Collections.emptyList());
 		}
 		return new JsonBean<>(store.list(id));
+	}
+
+	@GetMapping("/execution-records/logs")
+	@ResponseBody
+	public JsonBean<ExecutionLog> logs(String id, String runId, MagicHttpServletRequest request) throws Exception {
+		checkView(id, request);
+		ExecutionRecordStore store = MagicConfiguration.getExecutionRecordStore();
+		return new JsonBean<>(store == null ? new ExecutionLog(false, false, "") : store.logs(id, runId));
+	}
+
+	private void checkView(String id, MagicHttpServletRequest request) {
+		notBlank(id, FILE_NOT_FOUND);
+		MagicEntity entity = MagicConfiguration.getMagicResourceService().file(id);
+		notNull(entity, FILE_NOT_FOUND);
+		isTrue(allowVisit(request, Authorization.VIEW, entity), PERMISSION_INVALID);
 	}
 }

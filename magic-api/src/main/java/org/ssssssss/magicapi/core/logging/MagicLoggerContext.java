@@ -20,6 +20,7 @@ public interface MagicLoggerContext {
 	 * @param logInfo 日志信息
 	 */
 	static void println(String logInfo) {
+		org.ssssssss.magicapi.core.record.ExecutionLogCapture.append(logInfo);
 		// 获取SessionId
 		String sessionId = SESSION.get();
 		if (sessionId != null) {

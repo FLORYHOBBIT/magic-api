@@ -84,6 +84,13 @@
     <build>
         <finalName>magic-api-server</finalName>
         <plugins>
+            <!-- 依赖模块更新时也先生成普通 jar，避免 repackage 复用旧的可执行 jar。 -->
+            <plugin>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <forceCreation>true</forceCreation>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

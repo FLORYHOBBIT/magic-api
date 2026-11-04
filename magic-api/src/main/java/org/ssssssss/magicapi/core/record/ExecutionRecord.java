@@ -42,6 +42,17 @@ public class ExecutionRecord {
 	 */
 	private String message;
 
+	private String runId;
+	private boolean logAvailable;
+	private boolean logTruncated;
+
+	public String getRunId() { return runId; }
+	public void setRunId(String runId) { this.runId = runId; }
+	public boolean isLogAvailable() { return logAvailable; }
+	public void setLogAvailable(boolean logAvailable) { this.logAvailable = logAvailable; }
+	public boolean isLogTruncated() { return logTruncated; }
+	public void setLogTruncated(boolean logTruncated) { this.logTruncated = logTruncated; }
+
 	public ExecutionRecord() {
 	}
 
