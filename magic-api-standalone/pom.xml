@@ -45,6 +45,18 @@
             <artifactId>magic-api-plugin-upload</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 集成流程 -->
+        <dependency>
+            <groupId>org.ssssssss</groupId>
+            <artifactId>magic-api-plugin-flow</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- SkyWalking 链路追踪（需配合 SkyWalking Java Agent 使用） -->
+        <dependency>
+            <groupId>org.ssssssss</groupId>
+            <artifactId>magic-api-plugin-skywalking</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- JDBC 驱动（版本由 Spring Boot 管理） -->
         <dependency>
