@@ -53,7 +53,11 @@ import org.ssssssss.magicapi.core.service.impl.DefaultMagicResourceService;
 import org.ssssssss.magicapi.core.service.impl.RequestMagicDynamicRegistry;
 import org.ssssssss.magicapi.core.servlet.MagicRequestContextHolder;
 import org.ssssssss.magicapi.core.web.MagicResourceController;
+import org.ssssssss.magicapi.core.config.ExecutionRecordConfig;
+import org.ssssssss.magicapi.core.record.ExecutionRecordStore;
+import org.ssssssss.magicapi.core.web.ExecutionRecordController;
 import org.ssssssss.magicapi.core.web.MagicWorkbenchController;
+import java.nio.file.Paths;
 import org.ssssssss.magicapi.core.web.RequestHandler;
 import org.ssssssss.magicapi.datasource.model.MagicDynamicDataSource;
 import org.ssssssss.magicapi.datasource.service.DataSourceEncryptProvider;
@@ -317,6 +321,10 @@ public class MagicAPIAutoConfiguration implements WebMvcConfigurer, WebSocketCon
 		configuration.setMagicResourceService(magicResourceService);
 		configuration.setMagicDynamicRegistries(magicDynamicRegistriesProvider.getObject());
 		configuration.setMagicBackupService(magicBackupService);
+		ExecutionRecordConfig executionRecordConfig = properties.getExecutionRecord();
+		if (executionRecordConfig.isEnable()) {
+			configuration.setExecutionRecordStore(new ExecutionRecordStore(Paths.get(executionRecordConfig.getDir()), executionRecordConfig.getMaxRecords()));
+		}
 		Security security = properties.getSecurity();
 		configuration.setDebugTimeout(properties.getDebug().getTimeout());
 		configuration.setHttpMessageConverters(httpMessageConvertersProvider.getIfAvailable(Collections::emptyList));
@@ -342,7 +350,8 @@ public class MagicAPIAutoConfiguration implements WebMvcConfigurer, WebSocketCon
 			mapping.registerController(magicWorkbenchController)
 					.registerController(new MagicResourceController(configuration))
 					.registerController(new MagicDataSourceController(configuration))
-					.registerController(new MagicBackupController(configuration));
+					.registerController(new MagicBackupController(configuration))
+					.registerController(new ExecutionRecordController(configuration));
 			pluginConfigurations.forEach(it -> it.controllerRegister().register(mapping, configuration));
 		}
 		// 注册接收推送的接口

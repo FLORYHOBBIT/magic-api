@@ -2,6 +2,9 @@ export default {
     task: {
         title: '定时任务信息',
         name: '定时任务',
+        record: {
+            title: '执行记录'
+        },
         form: {
             name: '任务名称',
             path: '任务路径',

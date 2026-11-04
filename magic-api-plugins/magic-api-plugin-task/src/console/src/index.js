@@ -2,12 +2,15 @@ import MagicTask from './service/magic-task.js'
 import localZhCN from './i18n/zh-cn.js'
 import localEn from './i18n/en.js'
 import MagicTaskInfo from './components/magic-task-info.vue'
+import MagicTaskRecord from './components/magic-task-record.vue'
+import { setRecordRequest } from './service/record.js'
 import 'vite-plugin-svg-icons/register'
 export default (opt) => {
     const i18n = opt.i18n
     // 添加i18n 国际化信息
     i18n.add('zh-cn', localZhCN)
     i18n.add('en', localEn)
+    setRecordRequest(opt.request)
     return {
         // 左侧资源
         resource: [{
@@ -30,6 +33,12 @@ export default (opt) => {
             icon: 'parameter',
             // 对应的组件
             component: MagicTaskInfo,
+        }, {
+            id: 'task-record',
+            type: 'task',
+            title: 'task.record.title',
+            icon: 'history',
+            component: MagicTaskRecord,
         }]
     }
 }

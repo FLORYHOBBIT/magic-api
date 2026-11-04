@@ -17,6 +17,9 @@ export default {
             success: 'Upload channel test succeeded in {0} ms',
             failure: 'Upload channel test failed: {0}'
         },
-        tip: 'Passwords and secrets are shown as ENC(...) after saving. Leave unchanged to keep, retype to replace. Tests use the saved configuration.'
+        tip: 'Passwords and secrets are shown as ENC(...) after saving. Leave unchanged to keep, retype to replace. Tests use the saved configuration.',
+        record: {
+            title: 'Run Records'
+        }
     }
 }

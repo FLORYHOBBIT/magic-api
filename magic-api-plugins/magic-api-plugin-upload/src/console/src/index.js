@@ -2,12 +2,15 @@ import MagicUpload from './service/magic-upload.js'
 import localZhCN from './i18n/zh-cn.js'
 import localEn from './i18n/en.js'
 import MagicUploadChannelInfo from './components/magic-upload-channel-info.vue'
+import MagicUploadRecord from './components/magic-upload-record.vue'
+import { setRecordRequest } from './service/record.js'
 import 'vite-plugin-svg-icons/register'
 
 export default (opt) => {
     const i18n = opt.i18n
     i18n.add('zh-cn', localZhCN)
     i18n.add('en', localEn)
+    setRecordRequest(opt.request)
     return {
         // 左侧资源：类型与后端存储目录一致
         resource: [{
@@ -22,6 +25,12 @@ export default (opt) => {
             title: 'upload.title',
             icon: 'parameter',
             component: MagicUploadChannelInfo,
+        }, {
+            id: 'upload-channel-record',
+            type: 'upload-channel',
+            title: 'upload.record.title',
+            icon: 'history',
+            component: MagicUploadRecord,
         }]
     }
 }

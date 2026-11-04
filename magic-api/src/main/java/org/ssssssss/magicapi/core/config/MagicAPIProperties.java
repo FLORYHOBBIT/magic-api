@@ -165,6 +165,9 @@ public class MagicAPIProperties {
 	@NestedConfigurationProperty
 	private Backup backup = new Backup();
 
+	@NestedConfigurationProperty
+	private ExecutionRecordConfig executionRecord = new ExecutionRecordConfig();
+
 	public String getWeb() {
 		if (StringUtils.isBlank(web)) {
 			return null;
@@ -415,5 +418,13 @@ public class MagicAPIProperties {
 
 	public void setBackup(Backup backup) {
 		this.backup = backup;
+	}
+
+	public ExecutionRecordConfig getExecutionRecord() {
+		return executionRecord;
+	}
+
+	public void setExecutionRecord(ExecutionRecordConfig executionRecord) {
+		this.executionRecord = executionRecord;
 	}
 }

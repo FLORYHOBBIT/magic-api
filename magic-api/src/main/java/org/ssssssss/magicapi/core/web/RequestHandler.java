@@ -25,6 +25,8 @@ import org.ssssssss.magicapi.core.exception.ValidateException;
 import org.ssssssss.magicapi.core.interceptor.RequestInterceptor;
 import org.ssssssss.magicapi.core.interceptor.ResultProvider;
 import org.ssssssss.magicapi.core.logging.MagicLoggerContext;
+import org.ssssssss.magicapi.core.record.ExecutionRecord;
+import org.ssssssss.magicapi.core.record.ExecutionRecordStore;
 import org.ssssssss.magicapi.core.model.*;
 import org.ssssssss.magicapi.core.service.impl.RequestMagicDynamicRegistry;
 import org.ssssssss.magicapi.core.servlet.MagicHttpServletRequest;
@@ -157,6 +159,7 @@ public class RequestHandler extends MagicController {
 				}}, BODY_INVALID, disabledUnknownParameter);
 			}
 		} catch (ValidateException e) {
+			recordTest(requestEntity, false, e);
 			return afterCompletion(requestEntity, resultProvider.buildResult(requestEntity, RESPONSE_CODE_INVALID, e.getMessage()));
 		} catch (Throwable root) {
 			return processException(requestEntity, root);
@@ -340,6 +343,7 @@ public class RequestHandler extends MagicController {
 				return afterCompletion(requestEntity, value);
 			}
 			// 对返回结果包装处理
+			recordTest(requestEntity, true, null);
 			return afterCompletion(requestEntity, response(requestEntity, result));
 		} catch (Throwable root) {
 			return processException(requestEntity, root);
@@ -349,6 +353,7 @@ public class RequestHandler extends MagicController {
 	}
 
 	private Object processException(RequestEntity requestEntity, Throwable root) throws Throwable {
+		recordTest(requestEntity, false, root);
 		MagicScriptException se = null;
 		Throwable parent = root;
 		do {
@@ -374,6 +379,20 @@ public class RequestHandler extends MagicController {
 		}
 		logger.error("接口{}请求出错", requestEntity.getRequest().getRequestURI(), root);
 		return afterCompletion(requestEntity, resultProvider.buildException(requestEntity, root), root);
+	}
+
+	/**
+	 * 记录编辑器中的测试执行（真实业务请求不记录）
+	 */
+	private void recordTest(RequestEntity requestEntity, boolean success, Throwable throwable) {
+		ApiInfo info = requestEntity.getApiInfo();
+		if (!requestEntity.isRequestedFromTest() || info == null) {
+			return;
+		}
+		long startTime = requestEntity.getRequestTime();
+		long now = System.currentTimeMillis();
+		String message = success || throwable == null ? null : ExecutionRecordStore.messageOf(throwable);
+		ExecutionRecordStore.record(new ExecutionRecord(info.getId(), "api", MagicConfiguration.getMagicResourceService().getScriptName(info), "test", startTime, now - startTime, success, message));
 	}
 
 	/**
