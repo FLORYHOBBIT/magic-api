@@ -20,6 +20,17 @@ public class ExecutionRecordConfig {
 	 */
 	private int maxRecords = 200;
 
+	/** 是否保存定时任务的详细日志（定时触发与手动测试） */
+	private boolean logEnabled = true;
+
+	/** 每次执行最多保存的字符数，超出后截断，避免大日志占满内存和磁盘 */
+	private int maxLogChars = 262144;
+
+	public boolean isLogEnabled() { return logEnabled; }
+	public void setLogEnabled(boolean logEnabled) { this.logEnabled = logEnabled; }
+	public int getMaxLogChars() { return maxLogChars; }
+	public void setMaxLogChars(int maxLogChars) { this.maxLogChars = maxLogChars; }
+
 	public boolean isEnable() {
 		return enable;
 	}

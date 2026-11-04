@@ -323,7 +323,8 @@ public class MagicAPIAutoConfiguration implements WebMvcConfigurer, WebSocketCon
 		configuration.setMagicBackupService(magicBackupService);
 		ExecutionRecordConfig executionRecordConfig = properties.getExecutionRecord();
 		if (executionRecordConfig.isEnable()) {
-			configuration.setExecutionRecordStore(new ExecutionRecordStore(Paths.get(executionRecordConfig.getDir()), executionRecordConfig.getMaxRecords()));
+			configuration.setExecutionRecordStore(new ExecutionRecordStore(Paths.get(executionRecordConfig.getDir()), executionRecordConfig.getMaxRecords(),
+					executionRecordConfig.isLogEnabled() ? executionRecordConfig.getMaxLogChars() : 0));
 		}
 		Security security = properties.getSecurity();
 		configuration.setDebugTimeout(properties.getDebug().getTimeout());

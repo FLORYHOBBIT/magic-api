@@ -7,6 +7,7 @@ import org.ssssssss.magicapi.core.config.WebSocketSessionManager;
 import org.ssssssss.magicapi.core.logging.MagicLoggerContext;
 import org.ssssssss.magicapi.core.record.ExecutionRecord;
 import org.ssssssss.magicapi.core.record.ExecutionRecordStore;
+import org.ssssssss.magicapi.core.record.ExecutionLogCapture;
 import org.ssssssss.magicapi.core.model.DebugRequest;
 import org.ssssssss.magicapi.core.model.JsonBean;
 import org.ssssssss.magicapi.core.model.MagicEntity;
@@ -36,6 +37,7 @@ public class MagicTaskController extends MagicController implements MagicExcepti
 		long startTime = System.currentTimeMillis();
 		boolean success = false;
 		String message = null;
+		ExecutionLogCapture capture = ExecutionLogCapture.start(name);
 		try {
 			MagicScriptDebugContext magicScriptContext = debugRequest.createMagicScriptContext(configuration.getDebugTimeout());
 			WebSocketSessionManager.addMagicScriptContext(sessionAndScriptId, magicScriptContext);
@@ -43,13 +45,14 @@ public class MagicTaskController extends MagicController implements MagicExcepti
 			Object value = ScriptManager.executeScript(script, magicScriptContext);
 			success = true;
 			return new JsonBean<>(value);
-		} catch (RuntimeException e) {
+		} catch (RuntimeException | Error e) {
 			message = ExecutionRecordStore.messageOf(e);
+			capture.error(e);
 			throw e;
 		} finally {
 			WebSocketSessionManager.removeMagicScriptContext(sessionAndScriptId);
 			MagicLoggerContext.SESSION.remove();
-			ExecutionRecordStore.record(new ExecutionRecord(id, "task", name, "test", startTime, System.currentTimeMillis() - startTime, success, message));
+			capture.finish(new ExecutionRecord(id, "task", name, "test", startTime, System.currentTimeMillis() - startTime, success, message));
 		}
 	}
 }

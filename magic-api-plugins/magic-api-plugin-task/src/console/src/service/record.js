@@ -1,7 +1,16 @@
 let request = null
+let bus = null
+let Message = null
 
-export function setRecordRequest(value) {
+export function setRecordRequest(value, eventBus, messages) {
     request = value
+    bus = eventBus
+    Message = messages
+}
+
+export function showRecordLog(id, runId) {
+    bus.$emit(Message.SWITCH_TOOLBAR, 'log')
+    bus.$emit('execution-log:select', { id, runId })
 }
 
 export function fetchRecords(id) {

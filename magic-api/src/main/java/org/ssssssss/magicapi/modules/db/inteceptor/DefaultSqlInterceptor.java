@@ -1,5 +1,6 @@
 package org.ssssssss.magicapi.modules.db.inteceptor;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.ssssssss.magicapi.core.context.RequestEntity;
@@ -17,7 +18,14 @@ import java.util.stream.Stream;
 public class DefaultSqlInterceptor implements SQLInterceptor {
 
 	public void handleLog(BoundSql boundSql, RequestEntity requestEntity) {
-		Logger logger = LoggerFactory.getLogger(requestEntity == null ? "Unknown" : requestEntity.getMagicScriptContext().getScriptName());
+		String scriptName = requestEntity == null || requestEntity.getMagicScriptContext() == null
+				? null : requestEntity.getMagicScriptContext().getScriptName();
+		// 定时任务没有 HTTP 请求上下文，SQL 自身的运行上下文仍保留了脚本名称。
+		if (StringUtils.isBlank(scriptName) && boundSql.getRuntimeContext() != null
+				&& boundSql.getRuntimeContext().getScriptContext() != null) {
+			scriptName = boundSql.getRuntimeContext().getScriptContext().getScriptName();
+		}
+		Logger logger = LoggerFactory.getLogger(StringUtils.defaultIfBlank(scriptName, "Unknown"));
 		String parameters = Arrays.stream(boundSql.getParameters()).map(it -> {
 			if (it == null) {
 				return "null";

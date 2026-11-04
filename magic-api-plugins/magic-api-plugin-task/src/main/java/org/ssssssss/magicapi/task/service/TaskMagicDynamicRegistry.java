@@ -11,6 +11,8 @@ import org.ssssssss.magicapi.core.event.FileEvent;
 import org.ssssssss.magicapi.core.event.GroupEvent;
 import org.ssssssss.magicapi.core.record.ExecutionRecord;
 import org.ssssssss.magicapi.core.record.ExecutionRecordStore;
+import org.ssssssss.magicapi.core.record.ExecutionLogCapture;
+import org.ssssssss.magicapi.core.logging.MagicLoggerContext;
 import org.ssssssss.magicapi.core.service.AbstractMagicDynamicRegistry;
 import org.ssssssss.magicapi.core.service.MagicResourceStorage;
 import org.ssssssss.magicapi.task.model.TaskInfo;
@@ -59,8 +61,10 @@ public class TaskMagicDynamicRegistry extends AbstractMagicDynamicRegistry<TaskI
 				CronTask cronTask = new CronTask(() -> {
 					if (entity.isEnabled()) {
 						long startTime = System.currentTimeMillis();
-						boolean success = true;
+						boolean success = false;
 						String message = null;
+						MagicLoggerContext.SESSION.remove();
+						ExecutionLogCapture capture = ExecutionLogCapture.start(scriptName);
 						try {
 							if (showLog) {
 								logger.info("定时任务:[{}]开始执行", scriptName);
@@ -68,6 +72,7 @@ public class TaskMagicDynamicRegistry extends AbstractMagicDynamicRegistry<TaskI
 							MagicScriptContext magicScriptContext = new MagicScriptContext();
 							magicScriptContext.setScriptName(scriptName);
 							ScriptManager.executeScript(entity.getScript(), magicScriptContext);
+							success = true;
 						} catch (Exception e) {
 							success = false;
 							message = ExecutionRecordStore.messageOf(e);
@@ -76,7 +81,8 @@ public class TaskMagicDynamicRegistry extends AbstractMagicDynamicRegistry<TaskI
 							if (showLog) {
 								logger.info("定时任务:[{}]执行完毕", scriptName);
 							}
-							ExecutionRecordStore.record(new ExecutionRecord(entity.getId(), "task", scriptName, "cron", startTime, System.currentTimeMillis() - startTime, success, message));
+							MagicLoggerContext.SESSION.remove();
+							capture.finish(new ExecutionRecord(entity.getId(), "task", scriptName, "cron", startTime, System.currentTimeMillis() - startTime, success, message));
 						}
 					}
 				}, trigger);

@@ -10,7 +10,7 @@ export default (opt) => {
     // 添加i18n 国际化信息
     i18n.add('zh-cn', localZhCN)
     i18n.add('en', localEn)
-    setRecordRequest(opt.request)
+    setRecordRequest(opt.request, opt.bus, opt.Message)
     return {
         // 左侧资源
         resource: [{
