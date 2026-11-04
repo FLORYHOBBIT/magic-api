@@ -286,9 +286,12 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-	if (lf.value) {
-		lf.value.destroy && lf.value.destroy()
-		lf.value = null
+	// destroy 会清空图并触发 graph:rendered；先停用同步，避免空图覆盖资源脚本。
+	loading = true
+	const instance = lf.value
+	lf.value = null
+	if (instance && instance.destroy) {
+		instance.destroy()
 	}
 })
 
