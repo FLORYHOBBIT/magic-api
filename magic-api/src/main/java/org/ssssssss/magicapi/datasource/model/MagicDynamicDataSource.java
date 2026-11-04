@@ -28,6 +28,19 @@ public class MagicDynamicDataSource {
 	private final Map<String, MagicDynamicDataSource.DataSourceNode> dataSourceMap = new HashMap<>();
 
 	/**
+	 * 主数据源的 key，未指定 key 时优先使用；为空时回退到默认数据源（key 为空字符串）
+	 */
+	private volatile String primaryKey;
+
+	public String getPrimaryKey() {
+		return primaryKey;
+	}
+
+	public void setPrimaryKey(String primaryKey) {
+		this.primaryKey = primaryKey;
+	}
+
+	/**
 	 * 注册默认数据源
 	 */
 	public void put(DataSource dataSource) {
@@ -131,8 +144,9 @@ public class MagicDynamicDataSource {
 	 * @param datasourceKey 数据源Key
 	 */
 	public MagicDynamicDataSource.DataSourceNode getDataSource(String datasourceKey) {
-		if (datasourceKey == null) {
-			datasourceKey = "";
+		if (datasourceKey == null || datasourceKey.isEmpty()) {
+			String primary = this.primaryKey;
+			datasourceKey = primary != null && dataSourceMap.containsKey(primary) ? primary : "";
 		}
 		MagicDynamicDataSource.DataSourceNode dataSourceNode = dataSourceMap.get(datasourceKey);
 		Assert.isNotNull(dataSourceNode, String.format("找不到数据源%s", datasourceKey));

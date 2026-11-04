@@ -39,6 +39,19 @@ public class DataSourceInfo extends MagicEntity {
 	 */
 	private String type;
 
+	/**
+	 * 是否为主数据源：未指定 key 时（如消息中心、默认查询）使用它
+	 */
+	private boolean primary;
+
+	public boolean isPrimary() {
+		return primary;
+	}
+
+	public void setPrimary(boolean primary) {
+		this.primary = primary;
+	}
+
 	public String getUrl() {
 		return url;
 	}
@@ -113,6 +126,7 @@ public class DataSourceInfo extends MagicEntity {
 		dataSourceInfo.setDriverClassName(this.driverClassName);
 		dataSourceInfo.setType(this.type);
 		dataSourceInfo.setMaxRows(this.maxRows);
+		dataSourceInfo.setPrimary(this.primary);
 		dataSourceInfo.setKey(this.key);
 		return dataSourceInfo;
 	}
