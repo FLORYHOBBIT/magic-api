@@ -11,7 +11,7 @@ magic-api:
   # 管理界面登录账号。管理界面可以执行任意脚本，必须修改默认密码
   security:
     username: admin
-    password: changeme
+    password: zysoft
   upload:
     # 通道密码的加密密钥。建议在服务器上配置系统环境变量 UPLOAD_SECRET，不要直接写在这里
     secret-key: ${UPLOAD_SECRET:}
