@@ -72,11 +72,21 @@ public class DataSourceMagicDynamicRegistry extends AbstractMagicDynamicRegistry
 		}
 		DataSource datasource = createDataSource(getDataSourceType(info.getType()), properties);
 		magicDynamicDataSource.put(info.getId(), info.getKey(), info.getName(), datasource, info.getMaxRows());
+		if (info.isPrimary()) {
+			magicDynamicDataSource.setPrimaryKey(info.getKey());
+			logger.info("主数据源：{}", info.getKey());
+		} else if (info.getKey() != null && info.getKey().equals(magicDynamicDataSource.getPrimaryKey())) {
+			magicDynamicDataSource.setPrimaryKey(null);
+		}
 		return true;
 	}
 
 	@Override
 	protected void unregister(MappingNode<DataSourceInfo> mappingNode) {
+		DataSourceInfo info = mappingNode.getEntity();
+		if (info != null && info.getKey() != null && info.getKey().equals(magicDynamicDataSource.getPrimaryKey())) {
+			magicDynamicDataSource.setPrimaryKey(null);
+		}
 		magicDynamicDataSource.delete(mappingNode.getMappingKey());
 	}
 
