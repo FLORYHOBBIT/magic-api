@@ -19,3 +19,8 @@ magic-api:
 logging:
   file:
     name: logs/magic-api.log
+  logback:
+    rollingpolicy:
+      max-file-size: 50MB
+      max-history: 30
+      total-size-cap: 1GB
