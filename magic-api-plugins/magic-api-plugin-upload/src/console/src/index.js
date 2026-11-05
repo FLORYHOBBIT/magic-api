@@ -21,6 +21,8 @@ export default (opt) => {
         }],
         // 打开上传通道时，底部显示通道参数表单
         toolbars: [{
+            id: 'upload-channel-info',
+            position: 'first',
             type: 'upload-channel',
             title: 'upload.title',
             icon: 'parameter',

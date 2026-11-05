@@ -23,25 +23,14 @@ export default (opt) => {
             title: 'flow.name',
             service: MagicFlow(opt.bus, opt.constants, i18n.format, opt.Message, opt.request, MagicFlowCanvas),
         }],
-        // 底部工具条（编辑器按倒序插入，所以这里倒着写：显示顺序为 信息、调试运行、运行状态、消息中心、集成配置）
+        // 基础信息置首，其余工具条按声明顺序插在 TODO 前。
         toolbars: [{
-            id: 'flow-settings',
+            id: 'flow-info',
+            position: 'first',
             type: 'flow',
-            title: 'flow.settings.title',
-            icon: 'list',
-            component: MagicFlowSettings,
-        }, {
-            id: 'flow-msg',
-            type: 'flow',
-            title: 'flow.msg.title',
-            icon: 'event',
-            component: MagicFlowMsg,
-        }, {
-            id: 'flow-status',
-            type: 'flow',
-            title: 'flow.status.title',
-            icon: 'history',
-            component: MagicFlowStatus,
+            title: 'flow.title',
+            icon: 'parameter',
+            component: MagicFlowInfo,
         }, {
             id: 'flow-debug',
             type: 'flow',
@@ -49,10 +38,23 @@ export default (opt) => {
             icon: 'run',
             component: MagicFlowDebug,
         }, {
+            id: 'flow-status',
             type: 'flow',
-            title: 'flow.title',
-            icon: 'parameter',
-            component: MagicFlowInfo,
+            title: 'flow.status.title',
+            icon: 'history',
+            component: MagicFlowStatus,
+        }, {
+            id: 'flow-msg',
+            type: 'flow',
+            title: 'flow.msg.title',
+            icon: 'event',
+            component: MagicFlowMsg,
+        }, {
+            id: 'flow-settings',
+            type: 'flow',
+            title: 'flow.settings.title',
+            icon: 'list',
+            component: MagicFlowSettings,
         }]
     }
 }

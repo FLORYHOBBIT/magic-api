@@ -25,6 +25,8 @@ export default (opt) => {
         }],
         // 底部工具条
         toolbars: [{
+            id: 'task-info',
+            position: 'first',
             // 当打开的资源类型为 task 时显示
             type: 'task',
             // 工具条展示的标题
