@@ -1,4 +1,5 @@
 <template>
+    <teleport to=".magic-editor">
     <div class="flow-template-mask" @mousedown.self="close">
         <section ref="dialog" class="flow-template-dialog" tabindex="-1" role="dialog" aria-modal="true" :aria-busy="state.generating || state.loading" aria-labelledby="flow-template-title" @keydown="onKeydown">
             <header class="template-header">
@@ -38,6 +39,7 @@
             <footer class="template-footer"><span>生成将替换当前画布；生成后请检查节点配置并保存。</span><div><button class="mf-btn" :disabled="state.generating" @click="close">取消</button><button class="mf-btn template-primary" :disabled="!state.current || state.generating" @click="$emit('apply')">{{ state.generating ? '正在生成…' : '生成流程' }}</button></div></footer>
         </section>
     </div>
+    </teleport>
 </template>
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
@@ -63,8 +65,8 @@ onMounted(() => { previousFocus = document.activeElement; nextTick(() => search.
 onBeforeUnmount(() => { if (previousFocus && previousFocus.isConnected) previousFocus.focus() })
 </script>
 <style scoped>
-.flow-template-mask{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.38);z-index:30;padding:16px;box-sizing:border-box}
-.flow-template-dialog{display:flex;flex-direction:column;width:min(1040px,100%);height:min(640px,100%);min-height:0;background:var(--navbar-body-background-color,var(--main-background-color));color:var(--main-color);border:1px solid var(--main-border-color);border-radius:12px;box-shadow:0 18px 60px rgba(0,0,0,.24);overflow:hidden;font:13px/1.5 'Segoe UI','Microsoft YaHei',sans-serif;text-align:left}
+.flow-template-mask{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.38);z-index:900000;padding:24px;box-sizing:border-box}
+.flow-template-dialog{display:flex;flex-direction:column;width:min(1080px,100%);height:min(720px,100%);min-height:0;background:var(--navbar-body-background-color,var(--main-background-color));color:var(--main-color);border:1px solid var(--main-border-color);border-radius:12px;box-shadow:0 18px 60px rgba(0,0,0,.24);overflow:hidden;font:13px/1.5 'Segoe UI','Microsoft YaHei',sans-serif;text-align:left}
 .template-header{display:flex;justify-content:space-between;gap:16px;padding:18px 22px 16px;border-bottom:1px solid var(--main-border-color);flex-shrink:0}
 .template-eyebrow{font-size:11px;color:var(--resource-span-color);letter-spacing:.4px}
 .template-header h2{margin:3px 0 4px;font-size:19px;font-weight:600;line-height:1.4}
@@ -100,6 +102,9 @@ onBeforeUnmount(() => { if (previousFocus && previousFocus.isConnected) previous
 .template-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px 20px;border-top:1px solid var(--main-border-color);background:var(--main-background-color);flex-shrink:0}
 .template-footer>span{font-size:12px;color:var(--resource-span-color);flex:1;min-width:180px}
 .template-footer>div{display:flex;gap:8px}
+.template-footer .mf-btn{box-sizing:border-box;min-height:34px;padding:6px 15px;border:1px solid var(--input-border-color);border-radius:6px;background:var(--input-background-color);color:var(--main-color);font:inherit;line-height:20px;cursor:pointer}
+.template-footer .mf-btn:hover:not(:disabled){border-color:var(--input-focus-color);background:var(--main-hover-background-color)}
+.template-footer .mf-btn:focus-visible{outline:2px solid var(--input-focus-color);outline-offset:2px}
 .template-footer .template-primary{background:var(--input-focus-color,#287bde);color:#fff;border-color:var(--input-focus-color,#287bde);min-width:96px}
 .template-footer .template-primary:hover:not(:disabled){filter:brightness(1.06);background:var(--input-focus-color,#287bde);color:#fff}
 :disabled{opacity:.5;cursor:default}

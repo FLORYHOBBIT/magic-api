@@ -33,7 +33,11 @@ test('server render includes accessible dialog, selection and parameter values a
     const { renderToString } = require('@vue/server-renderer')
     const { Dialog } = compiled(true)
     const state = { list:templates,current:templates[0],values:{sql:'select <sample>'},loading:false,generating:false,error:'' }
-    const html = await renderToString(vue.createSSRApp(Dialog,{state}))
+    const ssr = {}
+    const shell = await renderToString(vue.createSSRApp(Dialog,{state}), ssr)
+    assert(shell.includes('teleport start'))
+    assert(ssr.teleports['.magic-editor'], 'Dialog must mount at the workbench root, outside the resized canvas')
+    const html = ssr.teleports['.magic-editor']
     assert(html.includes('role="dialog"'))
     assert(html.includes('aria-modal="true"'))
     assert(html.includes('aria-pressed="true"'))
@@ -44,7 +48,9 @@ test('server render includes accessible dialog, selection and parameter values a
 test('generation disables parameter controls and close action', async () => {
     const { renderToString } = require('@vue/server-renderer')
     const { Dialog } = compiled(true)
-    const html = await renderToString(vue.createSSRApp(Dialog,{state:{list:templates,current:templates[0],values:{sql:'select 1'},generating:true}}))
+    const ssr = {}
+    await renderToString(vue.createSSRApp(Dialog,{state:{list:templates,current:templates[0],values:{sql:'select 1'},generating:true}}), ssr)
+    const html = ssr.teleports['.magic-editor']
     assert(html.includes('aria-busy="true"'))
     assert.match(html, /<textarea[^>]*disabled/)
     assert(html.includes('正在生成…'))
