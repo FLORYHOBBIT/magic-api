@@ -1,15 +1,16 @@
 <template>
-	<div class="mf-status">
+	<div class="mf-status" :aria-busy="loading || actionPending">
 		<div class="mf-status-bar">
-			<button class="mf-btn" @click="refresh">刷新</button>
+			<button class="mf-btn" :disabled="loading || actionPending" @click="refresh()">{{ loading ? '刷新中…' : '刷新' }}</button>
 			<template v-if="status && status.startType === 'timer'">
-				<button class="mf-btn" @click="action('/flow/run', '立即执行')">立即执行</button>
-				<button class="mf-btn" @click="action('/flow/retry-failed', '补传失败批次')">补传失败批次</button>
-				<button class="mf-btn" @click="confirmReset">清除断点</button>
+				<button class="mf-btn" :disabled="actionPending" @click="action('/flow/run', '立即执行')">立即执行</button>
+				<button class="mf-btn" :disabled="actionPending" @click="action('/flow/retry-failed', '补传失败批次')">补传失败批次</button>
+				<button class="mf-btn" :disabled="actionPending" @click="confirmReset">清除断点</button>
 			</template>
 			<span class="mf-tip" :class="tipType">{{ tip }}</span>
 		</div>
-		<div v-if="!info || !info.id" class="mf-empty">保存流程后查看运行状态</div>
+		<div v-if="loading" class="mf-empty" role="status">正在读取运行状态…</div>
+		<div v-else-if="!info || !info.id" class="mf-empty">保存流程后查看运行状态</div>
 		<div v-else-if="status" class="mf-status-body">
 			<div class="mf-section">
 				<b>触发：</b>
@@ -60,7 +61,7 @@
 	</div>
 </template>
 <script setup>
-import { inject, ref, watch } from 'vue'
+import { inject, onBeforeUnmount, ref, watch } from 'vue'
 import { call } from '../service/context.js'
 
 const info = inject('info')
@@ -68,6 +69,11 @@ const status = ref(null)
 const tip = ref('')
 const tipType = ref('')
 const selected = ref(-1)
+const loading = ref(false)
+const actionPending = ref(false)
+let requestVersion = 0
+let actionVersion = 0
+const currentId = () => info.value && info.value.id
 
 const time = value => {
 	if (!value) {
@@ -78,44 +84,74 @@ const time = value => {
 	return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
-const refresh = () => {
-	const id = info.value && info.value.id
+const refresh = ({ preserveTip = false } = {}) => {
+	if (actionPending.value && !preserveTip) return
+	const id = currentId()
+	const version = ++requestVersion
+	const isCurrent = () => version === requestVersion && id === currentId()
+	status.value = null
+	selected.value = -1
+	if (!preserveTip) {
+		tip.value = ''
+		tipType.value = ''
+	}
+	loading.value = !!id
 	if (!id) {
-		status.value = null
 		return
 	}
-	call('get', '/flow/status', { id }).then(data => {
+	return call('get', '/flow/status', { id }).then(data => {
+		if (!isCurrent()) return
 		status.value = data
-		selected.value = -1
 	}).catch(message => {
+		if (!isCurrent()) return
 		tip.value = message
 		tipType.value = 'error'
+	}).finally(() => {
+		if (isCurrent()) loading.value = false
 	})
 }
 
 const action = (url, name) => {
+	const id = currentId()
+	if (!id || loading.value || actionPending.value) return
+	const version = ++actionVersion
+	const isCurrent = () => version === actionVersion && id === currentId()
+	actionPending.value = true
 	tip.value = name + '中…'
 	tipType.value = ''
-	call('post', url, { id: info.value.id }).then(result => {
+	return call('post', url, { id }).then(result => {
+		if (!isCurrent()) return
 		const text = result && typeof result === 'object'
 			? (result.status || (result.successBatches !== undefined ? `成功 ${result.successBatches} 批，失败 ${result.failedBatches} 批` : '完成')) + (result.message ? '：' + result.message : '')
 			: '完成'
 		tip.value = name + '：' + text
 		tipType.value = result && (result.status === 'FAILED' || result.failedBatches > 0) ? 'error' : 'ok'
-		refresh()
+		return refresh({ preserveTip: true })
 	}).catch(message => {
+		if (!isCurrent()) return
 		tip.value = name + '失败：' + message
 		tipType.value = 'error'
+	}).finally(() => {
+		if (isCurrent()) actionPending.value = false
 	})
 }
 
 const confirmReset = () => {
+	if (!currentId() || loading.value || actionPending.value) return
 	if (window.confirm('清除断点后，下次将从头读取全部数据（可能重复上传），确定吗？')) {
 		action('/flow/reset-checkpoint', '清除断点')
 	}
 }
 
-watch(() => info.value && info.value.id, refresh, { immediate: true })
+watch(currentId, () => {
+	++actionVersion
+	actionPending.value = false
+	refresh()
+}, { immediate: true })
+onBeforeUnmount(() => {
+	++requestVersion
+	++actionVersion
+})
 </script>
 <style scoped>
 .mf-status { display: flex; flex-direction: column; height: 100%; overflow: hidden; font-size: 12px; }
