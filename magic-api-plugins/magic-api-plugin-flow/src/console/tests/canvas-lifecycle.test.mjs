@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import vm from 'node:vm'
 
-const source = readFileSync(new URL('../src/components/magic-flow-canvas.vue', import.meta.url), 'utf8')
+const source = readFileSync(new URL('../src/components/magic-flow-canvas.vue', import.meta.url), 'utf8').replace(/\r\n?/g, '\n')
 const syncStart = source.indexOf('const sync = () => {')
 const syncCode = source.slice(syncStart, source.indexOf('\nwatch(', syncStart))
 const teardownStart = source.indexOf('onBeforeUnmount(() => {')
