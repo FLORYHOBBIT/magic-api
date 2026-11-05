@@ -77,6 +77,11 @@ class FlowEditorIntegrationTest {
 			JsonNode validated = json(mvc.perform(post("/magic/web/flow/validate").param("id", flowId)));
 			assertThat(validated.get("code").asInt()).isEqualTo(1);
 			assertThat(validated.get("data").asText()).contains("\"start\"");
+			JsonNode status = data(mvc.perform(get("/magic/web/flow/status").param("id", flowId)));
+			assertThat(status.get("enabled").asBoolean()).isTrue();
+			assertThat(status.get("records").isArray()).isTrue();
+			JsonNode missing = json(mvc.perform(get("/magic/web/flow/status").param("id", "missing-flow")));
+			assertThat(missing.get("code").asInt()).isEqualTo(5007);
 
 			assertThat(context.getBean(FlowMagicDynamicRegistry.class).getMapping("/insur/settle")).isNotNull();
 
@@ -104,6 +109,8 @@ class FlowEditorIntegrationTest {
 			assertThat(detail.get("name").asText()).isEqualTo("结算查询");
 			assertThat(detail.get("enabled").asBoolean()).isTrue();
 			assertThat(detail.get("script").asText()).isEqualTo(DEFINITION);
+			JsonNode status = data(mvc.perform(get("/magic/web/flow/status").param("id", flowId)));
+			assertThat(status.get("enabled").asBoolean()).isTrue();
 
 			FlowInfo registered = context.getBean(FlowMagicDynamicRegistry.class).getMapping("/insur/settle");
 			assertThat(registered).isNotNull();
