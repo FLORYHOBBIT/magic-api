@@ -10,15 +10,18 @@
 			<label>{{ $i('task.form.path') }}</label>
 			<magic-input v-model:value="info.path" :placeholder="$i('task.form.placeholder.path')" width="auto" style="flex:1"/>
 		</form>
+		<div v-if="cronDescription" class="task-cron-description">执行频率：{{ cronDescription }}</div>
 		<div style="flex:1;padding-top:5px;">
 			<magic-textarea v-model:value="info.description" :placeholder="$i('task.form.placeholder.description')"/>
 		</div>
 	</div>
 </template>
 <script setup>
-import { inject } from 'vue'
+import { inject, unref } from 'vue'
+import { useCronDescription } from '../service/use-cron-description.js'
 const $i = inject('i18n.format')
 const info = inject('info')
+const cronDescription = useCronDescription(() => unref(info)?.cron)
 </script>
 <style scoped>
 .magic-task-info{
@@ -27,6 +30,7 @@ const info = inject('info')
 	flex: 1;
 	padding: 5px;
 }
+.task-cron-description{padding:3px 12px 7px;color:var(--resource-span-color,#85909e);font-size:12px}
 .magic-task-info form{
 	display: flex;
 }

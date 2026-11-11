@@ -1,7 +1,11 @@
+import MagicTaskSummary from '../components/magic-task-summary.vue'
+import { markRaw } from 'vue'
+
 export default function (bus, constants, $i, Message, request) {
     return {
         // svg text
         getIcon: item => ['TASK', '#9012FE'],
+        metaComponent: markRaw(MagicTaskSummary),
         // 任务名称
         name: $i('task.name'),
         // 脚本语言

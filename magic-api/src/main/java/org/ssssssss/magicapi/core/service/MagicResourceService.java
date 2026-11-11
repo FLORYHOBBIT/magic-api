@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -116,6 +117,9 @@ public interface MagicResourceService {
 	 * 解锁资源
 	 */
 	boolean unlock(String id);
+
+	/** 批量切换分组及子分组内的 MS 脚本锁，写入前统一检查所有脚本权限。 */
+	Map<String, Object> lockGroup(String groupId, boolean locked, Predicate<MagicEntity> allowed);
 
 	boolean upload(InputStream inputStream, boolean full) throws IOException;
 

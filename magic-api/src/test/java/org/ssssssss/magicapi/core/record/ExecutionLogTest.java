@@ -15,6 +15,76 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExecutionLogTest {
+	@Test void completeCaptureStreamsBeyondPreviewAndAllSegmentsAndDownloadMatch() throws Exception {
+		ExecutionRecordStore store = new ExecutionRecordStore(dir, 2, 2097152);
+		ExecutionRecord record = record("complete");
+		String block = new String(new char[8191]).replace('\0', '中') + "😀";
+		ExecutionLogCapture capture = new ExecutionLogCapture(store);
+		for (int i = 0; i < 600; i++) MagicLoggerContext.println(block);
+		assertEquals("", capture.text(), "streaming capture must not accumulate the complete log in heap");
+		capture.finish(record);
+		assertFalse(record.isLogTruncated());
+		long characters = 0;
+		java.security.MessageDigest downloaded = java.security.MessageDigest.getInstance("SHA-256");
+		try (java.io.Reader input = new java.io.InputStreamReader(new java.security.DigestInputStream(store.openLog("complete", record.getRunId()), downloaded), StandardCharsets.UTF_8)) {
+			char[] buffer = new char[8192]; int count;
+			while ((count = input.read(buffer)) != -1) characters += count;
+		}
+		assertTrue(characters > 2097152 * 2L);
+		long offset = 0;
+		java.security.MessageDigest segments = java.security.MessageDigest.getInstance("SHA-256");
+		ExecutionLog segment;
+		do {
+			segment = store.logs("complete", record.getRunId(), offset);
+			assertFalse(segment.isTruncated());
+			assertTrue(segment.getText().length() <= store.getMaxLogChars());
+			assertFalse(Character.isHighSurrogate(segment.getText().charAt(segment.getText().length() - 1)));
+			segments.update(segment.getText().getBytes(StandardCharsets.UTF_8));
+			offset = segment.getNextOffset();
+		} while (segment.isHasMore());
+		assertEquals(characters, offset);
+		assertArrayEquals(downloaded.digest(), segments.digest());
+		assertTrue(segment.getText().contains("执行结束：成功"));
+		assertNull(store.openLog("another", record.getRunId()));
+		assertNull(store.openLog("complete", "../outside"));
+		assertThrows(IllegalArgumentException.class, () -> store.logs("complete", record.getRunId(), -1));
+		try (Stream<Path> files = Files.list(dir.resolve("in-progress"))) { assertEquals(0, files.count()); }
+	}
+
+	@Test void completeCaptureFailureDoesNotBreakTheTaskAndIsExplicit() throws Exception {
+		Files.write(dir.resolve("blocked"), new byte[]{1});
+		ExecutionRecordStore store = new ExecutionRecordStore(dir.resolve("blocked"), 2, 20);
+		ExecutionLogCapture capture = new ExecutionLogCapture(store);
+		MagicLoggerContext.println("some task output");
+		assertTrue(capture.isTruncated());
+		assertDoesNotThrow(() -> capture.finish(record("failure")));
+		try (ExecutionLogCapture next = new ExecutionLogCapture(100)) {
+			MagicLoggerContext.println("next task"); assertEquals("next task", next.text());
+		}
+	}
+	@Test void eightTimesDefaultSurvivesCaptureStorageAndRead() throws Exception {
+		int limit = 262144 * 8;
+		assertEquals(limit, new org.ssssssss.magicapi.core.config.ExecutionRecordConfig().getMaxLogChars());
+		ExecutionRecordStore store = new ExecutionRecordStore(dir, 2);
+		assertEquals(limit, store.getMaxLogChars());
+		assertEquals(limit, new ExecutionRecordStore(dir, 2, Integer.MAX_VALUE).getMaxLogChars());
+		assertEquals(100, new ExecutionRecordStore(dir, 2, 100).getMaxLogChars());
+		StringBuilder text = new StringBuilder(limit);
+		while (text.length() < limit - 2) text.append('中');
+		text.append("😀");
+		ExecutionRecord record = record("large");
+		try (ExecutionLogCapture capture = new ExecutionLogCapture(limit)) {
+			MagicLoggerContext.println(text.toString());
+			assertFalse(capture.isTruncated());
+			store.append(record, capture.text(), capture.isTruncated());
+		}
+		ExecutionLog log = store.logs("large", record.getRunId());
+		assertEquals(text.toString(), log.getText());
+		assertFalse(log.isTruncated());
+		store.append(record, text.append('尾').toString(), false);
+		assertTrue(store.logs("large", record.getRunId()).isTruncated());
+		assertEquals(limit, store.logs("large", record.getRunId()).getText().length());
+	}
 	@TempDir Path dir;
 	private ExecutionRecord record(String id) { return new ExecutionRecord(id, "task", id, "cron", 1, 2, true, null); }
 

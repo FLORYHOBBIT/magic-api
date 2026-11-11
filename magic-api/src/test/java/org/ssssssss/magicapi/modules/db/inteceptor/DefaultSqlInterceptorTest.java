@@ -40,11 +40,11 @@ class DefaultSqlInterceptorTest {
 
 	@Test void scheduledSqlUsesTaskPathForSqlDatasourceAndParameters() {
 		interceptor.postHandle(sql("/任务/挂号推送"), new Object(), null);
-		assertEquals(3, logs.list.size());
+		assertEquals(1, logs.list.size());
 		assertTrue(logs.list.stream().allMatch(event -> event.getLoggerName().equals("/任务/挂号推送")));
-		assertTrue(logs.list.get(0).getFormattedMessage().contains("select ?"));
-		assertTrue(logs.list.get(1).getFormattedMessage().contains("业务库"));
-		assertTrue(logs.list.get(2).getFormattedMessage().contains("parameter(String)"));
+		assertTrue(logs.list.get(0).getFormattedMessage().contains("select 'parameter'"));
+		assertTrue(logs.list.get(0).getFormattedMessage().contains("[数据源：业务库]"));
+		assertFalse(logs.list.stream().anyMatch(event -> event.getFormattedMessage().startsWith("数据源：")));
 	}
 
 	@Test void requestScriptNameIsPreserved() {
@@ -57,12 +57,33 @@ class DefaultSqlInterceptorTest {
 
 	@Test void sqlFailureAlsoUsesTheRuntimeScriptNameWhenRequestContextIsIncomplete() {
 		interceptor.handleException(sql("/任务/失败任务"), new IllegalStateException("failed"), mock(RequestEntity.class));
-		assertEquals(3, logs.list.size());
+		assertEquals(1, logs.list.size());
 		assertTrue(logs.list.stream().allMatch(event -> event.getLoggerName().equals("/任务/失败任务")));
 	}
 
 	@Test void unknownIsRetainedOnlyWhenBothContextsHaveNoScriptName() {
 		interceptor.postHandle(sql(" "), null, null);
 		assertTrue(logs.list.stream().allMatch(event -> event.getLoggerName().equals("Unknown")));
+	}
+
+	@Test void renderingDoesNotChangeExecutedSqlOrParameters() {
+		BoundSql bound = sql("/task");
+		interceptor.postHandle(bound, null, null);
+		assertEquals("select ?", bound.getSql());
+		assertArrayEquals(new Object[]{"parameter"}, bound.getParameters());
+	}
+
+	@Test void renderingFailureDoesNotReplaceTheOriginalDatabaseFailure() {
+		BoundSql bound = sql("/task");
+		bound.setSql("select ?, ?");
+		assertDoesNotThrow(() -> interceptor.handleException(bound, new IllegalStateException("database failed"), null));
+		assertTrue(logs.list.stream().anyMatch(event -> event.getFormattedMessage().contains("日志参数未展开")));
+		assertTrue(logs.list.stream().anyMatch(event -> event.getFormattedMessage().contains("[数据源：业务库]")));
+	}
+
+	@Test void sqlWithNoDatasourceStillProducesOnePlainSqlEntry() {
+		interceptor.handleLog(new BoundSql(null, "select 1", Collections.emptyList(), null), null);
+		assertEquals(1, logs.list.size());
+		assertEquals("执行SQL：select 1", logs.list.get(0).getFormattedMessage());
 	}
 }

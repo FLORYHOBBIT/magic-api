@@ -4,6 +4,9 @@
 magic-api:
   # 管理界面入口：http://服务器IP:端口/magic/web
   web: /magic/web
+  execution-record:
+    # 页面每段读取字符数；定时任务完整保存至文件，不按字符数截断。
+    max-log-chars: 2097152
   # 接口脚本存储位置（相对路径相对于 start.cmd 所在目录）
   resource:
     type: file
