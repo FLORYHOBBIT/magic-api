@@ -4,6 +4,7 @@ import localEn from './i18n/en.js'
 import MagicTaskInfo from './components/magic-task-info.vue'
 import MagicTaskRecord from './components/magic-task-record.vue'
 import { setRecordRequest } from './service/record.js'
+import { setCronRequest } from './service/cron-description.js'
 import 'vite-plugin-svg-icons/register'
 export default (opt) => {
     const i18n = opt.i18n
@@ -11,6 +12,7 @@ export default (opt) => {
     i18n.add('zh-cn', localZhCN)
     i18n.add('en', localEn)
     setRecordRequest(opt.request, opt.bus, opt.Message)
+    setCronRequest(opt.request)
     return {
         // 左侧资源
         resource: [{

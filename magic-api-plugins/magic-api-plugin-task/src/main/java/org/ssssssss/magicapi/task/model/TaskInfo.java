@@ -61,6 +61,8 @@ public class TaskInfo extends PathMagicEntity {
 	public MagicEntity simple() {
 		TaskInfo info = new TaskInfo();
 		super.simple(info);
+		info.setCron(this.cron);
+		info.setEnabled(this.enabled);
 		return info;
 	}
 

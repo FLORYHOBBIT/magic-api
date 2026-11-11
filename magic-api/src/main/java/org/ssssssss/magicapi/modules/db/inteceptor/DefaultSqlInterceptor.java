@@ -6,10 +6,6 @@ import org.slf4j.LoggerFactory;
 import org.ssssssss.magicapi.core.context.RequestEntity;
 import org.ssssssss.magicapi.modules.db.BoundSql;
 
-import java.util.Arrays;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 /**
  * 默认打印SQL实现
  *
@@ -26,22 +22,14 @@ public class DefaultSqlInterceptor implements SQLInterceptor {
 			scriptName = boundSql.getRuntimeContext().getScriptContext().getScriptName();
 		}
 		Logger logger = LoggerFactory.getLogger(StringUtils.defaultIfBlank(scriptName, "Unknown"));
-		String parameters = Arrays.stream(boundSql.getParameters()).map(it -> {
-			if (it == null) {
-				return "null";
-			}
-			if (it instanceof Object[]){
-				return "[" + Stream.of((Object[]) it).map(x -> x == null ? "null" : (x + "(" + x.getClass().getSimpleName() + ")")).collect(Collectors.joining(", ")) + "]";
-			}
-			return it + "(" + it.getClass().getSimpleName() + ")";
-		}).collect(Collectors.joining(", "));
-		String dataSourceName = boundSql.getSqlModule().getDataSourceName();
-		logger.info("执行SQL：{}", boundSql.getSql().trim());
-		if (dataSourceName != null) {
-			logger.info("数据源：{}", dataSourceName);
-		}
-		if (parameters.length() > 0) {
-			logger.info("SQL参数：{}", parameters);
+		String dataSourceName = boundSql.getSqlModule() == null ? null : boundSql.getSqlModule().getDataSourceName();
+		String source = StringUtils.isBlank(dataSourceName) ? "" : "[数据源：" + dataSourceName + "] ";
+		try {
+			logger.info("执行SQL：{}{}", source, SqlLogFormatter.format(boundSql.getSql(), boundSql.getParameters()).trim());
+		} catch (RuntimeException e) {
+			// 日志展开失败不能影响真实 SQL 执行，也不能掩盖原始数据库异常。
+			logger.warn("SQL 日志参数展开失败：{}", e.getMessage());
+			logger.info("原始SQL（日志参数未展开）：{}{}", source, boundSql.getSql());
 		}
 	}
 

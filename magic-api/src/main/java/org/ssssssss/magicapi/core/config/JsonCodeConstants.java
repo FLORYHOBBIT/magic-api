@@ -66,7 +66,17 @@ public interface JsonCodeConstants {
 
 	JsonCode DATASOURCE_KEY_INVALID = new JsonCode(1026, "数据源Key不能包含特殊字符，只允许中文、数字、字母以及_组合");
 
-	JsonCode FILE_SAVE_FAILURE = new JsonCode(1027, "保存失败,同一组下分组名称不能重复且不能包含特殊字符。");
+	JsonCode FILE_SAVE_FAILURE = new JsonCode(1027, "资源保存失败，请查看服务日志。");
+
+	JsonCode GROUP_NAME_CONFLICT = new JsonCode(1037, "保存失败，同一模块的同一父分组下已存在分组「%s」。");
+
+	JsonCode FILE_NAME_CONFLICT = new JsonCode(1038, "保存失败，同一分组下脚本名称「%s」已被使用。");
+
+	JsonCode RESOURCE_RENAME_FAILURE = new JsonCode(1039, "资源「%s」重命名失败，请检查存储权限、文件占用及服务日志。");
+
+	JsonCode LOCK_LOGIN_REQUIRED = new JsonCode(1040, "锁定或解锁需要已登录账号，请启用账号密码登录后操作。");
+	JsonCode LOCK_PASSWORD_REQUIRED = new JsonCode(1041, "请输入当前登录账号的登录密码。");
+	JsonCode LOCK_PASSWORD_INVALID = new JsonCode(1042, "登录密码不正确，未改变锁定状态。");
 
 	JsonCode PARAMETER_INVALID = new JsonCode(1028, "参数验证失败");
 

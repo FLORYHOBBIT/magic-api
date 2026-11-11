@@ -1,7 +1,9 @@
 package org.ssssssss.magicapi.task.web;
 
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.scheduling.support.CronExpression;
 import org.ssssssss.magicapi.core.config.MagicConfiguration;
 import org.ssssssss.magicapi.core.config.WebSocketSessionManager;
 import org.ssssssss.magicapi.core.logging.MagicLoggerContext;
@@ -22,6 +24,21 @@ public class MagicTaskController extends MagicController implements MagicExcepti
 
 	public MagicTaskController(MagicConfiguration configuration) {
 		super(configuration);
+	}
+
+	/** 使用与调度器相同的解析器校验并展开宏，不创建或执行任务。 */
+	@GetMapping("/task/cron/validate")
+	@ResponseBody
+	public JsonBean<String> validateCron(String expression) {
+		String normalized = null;
+		if (expression != null && !expression.trim().isEmpty()) {
+			try {
+				normalized = CronExpression.parse(expression.trim()).toString();
+			} catch (IllegalArgumentException ignored) {
+				// 编辑过程中可能暂时不合法，此时不展示频率说明。
+			}
+		}
+		return new JsonBean<>(normalized);
 	}
 
 	@PostMapping("/task/execute")

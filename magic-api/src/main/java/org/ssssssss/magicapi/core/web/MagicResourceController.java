@@ -3,6 +3,8 @@ package org.ssssssss.magicapi.core.web;
 import org.springframework.web.bind.annotation.*;
 import org.ssssssss.magicapi.core.config.Constants;
 import org.ssssssss.magicapi.core.config.MagicConfiguration;
+import org.ssssssss.magicapi.core.context.MagicUser;
+import org.ssssssss.magicapi.core.exception.MagicLoginException;
 import org.ssssssss.magicapi.core.exception.InvalidArgumentException;
 import org.ssssssss.magicapi.core.interceptor.Authorization;
 import org.ssssssss.magicapi.core.model.*;
@@ -127,20 +129,58 @@ public class MagicResourceController extends MagicController implements MagicExc
 
 	@PostMapping("/resource/lock")
 	@ResponseBody
-	public JsonBean<Boolean> lock(String id, MagicHttpServletRequest request) {
+	public JsonBean<Boolean> lock(String id, @RequestParam(value = "password", required = false) String password, MagicHttpServletRequest request) {
 		MagicEntity entity = service.file(id);
 		notNull(entity, FILE_NOT_FOUND);
 		isTrue(allowVisit(request, Authorization.LOCK, entity), PERMISSION_INVALID);
+		confirmLoginPassword(request, password);
 		return new JsonBean<>(service.lock(id));
 	}
 
 	@PostMapping("/resource/unlock")
 	@ResponseBody
-	public JsonBean<Boolean> unlock(String id, MagicHttpServletRequest request) {
+	public JsonBean<Boolean> unlock(String id, @RequestParam(value = "password", required = false) String password, MagicHttpServletRequest request) {
 		MagicEntity entity = service.file(id);
 		notNull(entity, FILE_NOT_FOUND);
 		isTrue(allowVisit(request, Authorization.UNLOCK, entity), PERMISSION_INVALID);
+		confirmLoginPassword(request, password);
 		return new JsonBean<>(service.unlock(id));
+	}
+
+	@PostMapping("/resource/folder/lock")
+	@ResponseBody
+	public JsonBean<Map<String, Object>> lockFolder(String id, @RequestParam(value = "password", required = false) String password, MagicHttpServletRequest request) {
+		return changeFolderLock(id, password, true, request);
+	}
+
+	@PostMapping("/resource/folder/unlock")
+	@ResponseBody
+	public JsonBean<Map<String, Object>> unlockFolder(String id, @RequestParam(value = "password", required = false) String password, MagicHttpServletRequest request) {
+		return changeFolderLock(id, password, false, request);
+	}
+
+	private JsonBean<Map<String, Object>> changeFolderLock(String id, String password, boolean locked, MagicHttpServletRequest request) {
+		Group group = service.getGroup(id);
+		notNull(group, GROUP_NOT_FOUND);
+		Authorization action = locked ? Authorization.LOCK : Authorization.UNLOCK;
+		isTrue(allowVisit(request, action, group), PERMISSION_INVALID);
+		confirmLoginPassword(request, password);
+		return new JsonBean<>(service.lockGroup(id, locked, entity -> allowVisit(request, action, entity)));
+	}
+
+	private void confirmLoginPassword(MagicHttpServletRequest request, String password) {
+		MagicUser current = (MagicUser) request.getAttribute(Constants.ATTRIBUTE_MAGIC_USER);
+		isTrue(configuration.getAuthorizationInterceptor().requireLogin() && current != null
+				&& current.getUsername() != null, LOCK_LOGIN_REQUIRED);
+		isTrue(password != null && !password.isEmpty(), LOCK_PASSWORD_REQUIRED);
+		MagicUser verified;
+		try {
+			verified = configuration.getAuthorizationInterceptor().login(current.getUsername(), password);
+		} catch (MagicLoginException ignored) {
+			throw new InvalidArgumentException(LOCK_PASSWORD_INVALID);
+		}
+		isTrue(verified != null && Objects.equals(current.getUsername(), verified.getUsername())
+				&& Objects.equals(current.getId(), verified.getId()), LOCK_PASSWORD_INVALID);
 	}
 
 	@PostMapping("/resource")

@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.ArrayDeque;
 import java.io.BufferedReader;
 import java.io.Reader;
+import java.io.InputStream;
 import java.util.stream.Stream;
 
 /**
@@ -37,6 +38,7 @@ public class ExecutionRecordStore {
 	private static final Logger logger = LoggerFactory.getLogger(ExecutionRecordStore.class);
 
 	private static final int MAX_MESSAGE_LENGTH = 500;
+	public static final int MAX_LOG_CHARS = 2097152;
 
 	private final Path dir;
 
@@ -53,17 +55,27 @@ public class ExecutionRecordStore {
 	private final Map<String, Integer> lineCounts = new ConcurrentHashMap<>();
 
 	public ExecutionRecordStore(Path dir, int maxRecords) {
-		this(dir, maxRecords, 262144);
+		this(dir, maxRecords, MAX_LOG_CHARS);
 	}
 
 	public ExecutionRecordStore(Path dir, int maxRecords, int maxLogChars) {
 		this.dir = dir;
 		this.maxRecords = Math.max(1, maxRecords);
 		this.compactThreshold = (int) Math.min(Integer.MAX_VALUE, (long) this.maxRecords * 2);
-		this.maxLogChars = Math.min(1048576, Math.max(0, maxLogChars));
+		this.maxLogChars = Math.min(MAX_LOG_CHARS, Math.max(0, maxLogChars));
 	}
 
 	public int getMaxLogChars() { return maxLogChars; }
+
+	Path createCaptureFile() throws IOException {
+		Path folder = dir.resolve("in-progress");
+		Files.createDirectories(folder);
+		return Files.createTempFile(folder, "capture-", ".partial");
+	}
+
+	public void appendComplete(ExecutionRecord record, Path completeFile, boolean incomplete) throws IOException {
+		append(record, null, incomplete, completeFile);
+	}
 
 	/**
 	 * 记录一次执行；未启用或写入失败时只打日志，不影响执行本身
@@ -97,23 +109,28 @@ public class ExecutionRecordStore {
 	}
 
 	public void append(ExecutionRecord record, String log, boolean truncated) throws IOException {
+		append(record, log, truncated, null);
+	}
+
+	private void append(ExecutionRecord record, String log, boolean truncated, Path completeFile) throws IOException {
 		String key = key(record.getId());
 		synchronized (lock(key)) {
 			Files.createDirectories(dir);
 			record.setRunId(UUID.randomUUID().toString().replace("-", ""));
 			record.setLogAvailable(false);
 			record.setLogTruncated(truncated);
-			if (log != null && maxLogChars > 0) {
+			if ((log != null || completeFile != null) && maxLogChars > 0) {
 				try {
 					Path folder = dir.resolve(key + "-logs");
 					Files.createDirectories(folder);
-					if (log.length() > maxLogChars) {
+					if (completeFile == null && log.length() > maxLogChars) {
 						int end = maxLogChars;
 						if (end > 0 && Character.isHighSurrogate(log.charAt(end - 1))) { end--; }
 						log = log.substring(0, end);
 						record.setLogTruncated(true);
 					}
-					Files.write(folder.resolve(record.getRunId() + ".log"), log.getBytes(StandardCharsets.UTF_8));
+					if (completeFile != null) { Files.move(completeFile, folder.resolve(record.getRunId() + ".log")); }
+					else { Files.write(folder.resolve(record.getRunId() + ".log"), log.getBytes(StandardCharsets.UTF_8)); }
 					record.setLogAvailable(true);
 				} catch (IOException e) {
 					logger.warn("写入执行日志失败：{}", record.getId(), e);
@@ -163,6 +180,11 @@ public class ExecutionRecordStore {
 	}
 
 	public ExecutionLog logs(String id, String runId) throws IOException {
+		return logs(id, runId, 0);
+	}
+
+	public ExecutionLog logs(String id, String runId, long offset) throws IOException {
+		if (offset < 0) { throw new IllegalArgumentException("日志位置不能为负数"); }
 		if (StringUtils.isBlank(id) || runId == null || !runId.matches("[a-f0-9]{32}")) {
 			return new ExecutionLog(false, false, "");
 		}
@@ -174,18 +196,35 @@ public class ExecutionRecordStore {
 				return new ExecutionLog(false, false, "");
 			}
 			StringBuilder text = new StringBuilder();
-			int readLimit = maxLogChars == 0 ? 262144 : maxLogChars;
+			int readLimit = maxLogChars == 0 ? MAX_LOG_CHARS : maxLogChars;
 			try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+				long remaining = offset;
+				while (remaining > 0) {
+					long skipped = reader.skip(remaining);
+					if (skipped == 0) { break; }
+					remaining -= skipped;
+				}
 				char[] chunk = new char[4096];
 				int size;
 				while (text.length() <= readLimit && (size = reader.read(chunk, 0, Math.min(chunk.length, readLimit + 1 - text.length()))) > 0) {
 					text.append(chunk, 0, size);
 				}
 			}
-			boolean truncated = record.isLogTruncated() || text.length() > readLimit;
+			boolean hasMore = text.length() > readLimit;
 			if (text.length() > readLimit) { text.setLength(readLimit); }
 			if (text.length() > 0 && Character.isHighSurrogate(text.charAt(text.length() - 1))) { text.setLength(text.length() - 1); }
-			return new ExecutionLog(true, truncated, text.toString());
+			return new ExecutionLog(true, record.isLogTruncated(), text.toString(), offset + text.length(), hasMore);
+		}
+	}
+
+	/** 先在资源锁内验证归属并打开文件，再由响应流读取，避免整份日志进入堆内存。 */
+	public InputStream openLog(String id, String runId) throws IOException {
+		if (StringUtils.isBlank(id) || runId == null || !runId.matches("[a-f0-9]{32}")) { return null; }
+		String key = key(id);
+		synchronized (lock(key)) {
+			ExecutionRecord record = list(id).stream().filter(it -> runId.equals(it.getRunId())).findFirst().orElse(null);
+			Path file = dir.resolve(key + "-logs").resolve(runId + ".log");
+			return record != null && record.isLogAvailable() && Files.isRegularFile(file) ? Files.newInputStream(file) : null;
 		}
 	}
 
