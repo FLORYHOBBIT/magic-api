@@ -48,7 +48,7 @@ public class MagicAPITaskConfiguration implements MagicPluginConfiguration {
 
 	@Override
 	public Plugin plugin() {
-		return new Plugin("定时任务", "MagicTask", "magic-task.1.0.0.iife.js");
+		return new Plugin("定时任务", "MagicTask", "magic-task.1.0.1.iife.js");
 	}
 
 	@Override

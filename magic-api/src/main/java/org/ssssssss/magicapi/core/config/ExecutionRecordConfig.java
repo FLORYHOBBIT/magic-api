@@ -1,7 +1,7 @@
 package org.ssssssss.magicapi.core.config;
 
 /**
- * 执行记录配置（接口测试、定时任务、上传通道测试的执行摘要）
+ * 执行记录配置（接口测试与定时任务的执行摘要）
  */
 public class ExecutionRecordConfig {
 

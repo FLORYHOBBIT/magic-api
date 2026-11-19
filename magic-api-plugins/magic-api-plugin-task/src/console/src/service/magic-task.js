@@ -1,6 +1,8 @@
 import MagicTaskSummary from '../components/magic-task-summary.vue'
 import { markRaw } from 'vue'
 
+let testSequence = 0
+
 export default function (bus, constants, $i, Message, request) {
     return {
         // svg text
@@ -15,6 +17,8 @@ export default function (bus, constants, $i, Message, request) {
         // 执行测试的逻辑
         doTest: (opened) => {
             opened.running = true
+            const testRunId = Date.now().toString(36) + '-' + (++testSequence).toString(36)
+            opened.testLogRunId = testRunId
             const info = opened.item
             const requestConfig = {
                 baseURL: constants.SERVER_URL,
@@ -25,7 +29,8 @@ export default function (bus, constants, $i, Message, request) {
                 withCredentials: true
             }
             bus.$emit(Message.SWITCH_TOOLBAR, 'log')
-            bus.$emit('execution-log:live')
+            bus.$emit('execution-log:task-start', info.id)
+            requestConfig.headers['X-Magic-Task-Test-Run'] = testRunId
             requestConfig.headers[constants.HEADER_REQUEST_CLIENT_ID] = constants.CLIENT_ID
             requestConfig.headers[constants.HEADER_REQUEST_SCRIPT_ID] = opened.item.id
             requestConfig.headers[constants.HEADER_MAGIC_TOKEN] = constants.HEADER_MAGIC_TOKEN_VALUE

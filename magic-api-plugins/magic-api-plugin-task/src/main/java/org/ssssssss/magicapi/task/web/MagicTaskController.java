@@ -50,6 +50,10 @@ public class MagicTaskController extends MagicController implements MagicExcepti
 		String name = MagicConfiguration.getMagicResourceService().getScriptName(entity);
 		DebugRequest debugRequest = DebugRequest.create(request);
 		MagicLoggerContext.SESSION.set(debugRequest.getRequestedClientId());
+		String testRunId = request.getHeader("X-Magic-Task-Test-Run");
+		if (testRunId != null && testRunId.matches("[0-9A-Za-z_-]{1,64}")) {
+			MagicLoggerContext.TASK_TEST_RUN.set(testRunId);
+		}
 		String sessionAndScriptId = debugRequest.getRequestedClientId() + debugRequest.getRequestedScriptId();
 		long startTime = System.currentTimeMillis();
 		boolean success = false;
@@ -69,6 +73,7 @@ public class MagicTaskController extends MagicController implements MagicExcepti
 		} finally {
 			WebSocketSessionManager.removeMagicScriptContext(sessionAndScriptId);
 			MagicLoggerContext.SESSION.remove();
+			MagicLoggerContext.TASK_TEST_RUN.remove();
 			capture.finish(new ExecutionRecord(id, "task", name, "test", startTime, System.currentTimeMillis() - startTime, success, message));
 		}
 	}

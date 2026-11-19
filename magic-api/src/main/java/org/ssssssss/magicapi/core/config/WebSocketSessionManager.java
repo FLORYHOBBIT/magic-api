@@ -33,7 +33,7 @@ public class WebSocketSessionManager {
 
 	private static final int KEEPALIVE_TIMEOUT = 60 * 1000;
 
-	private static final List<Pair<String, String>> MESSAGE_CACHE = new ArrayList<>(200);
+	private static final List<Pair<Pair<String, String>, String>> MESSAGE_CACHE = new ArrayList<>(200);
 
 	public static void add(MagicConsoleSession session) {
 		SESSIONS.put(session.getClientId(), session);
@@ -75,8 +75,12 @@ public class WebSocketSessionManager {
 	}
 
 	public static void sendLogs(String sessionId, String message) {
+		sendLogs(sessionId, message, null);
+	}
+
+	public static void sendLogs(String sessionId, String message, String taskTestRunId) {
 		synchronized (MESSAGE_CACHE) {
-			MESSAGE_CACHE.add(Pair.of(sessionId, message));
+			MESSAGE_CACHE.add(Pair.of(Pair.of(sessionId, taskTestRunId), message));
 			if (MESSAGE_CACHE.size() >= 100) {
 				flushLog();
 			}
@@ -85,12 +89,19 @@ public class WebSocketSessionManager {
 
 	public static void flushLog() {
 		try {
-			Map<String, List<String>> messages;
+			Map<Pair<String, String>, List<String>> messages;
 			synchronized (MESSAGE_CACHE) {
 				messages = MESSAGE_CACHE.stream().collect(Collectors.groupingBy(Pair::getFirst, Collectors.mapping(Pair::getSecond, Collectors.toList())));
 				MESSAGE_CACHE.clear();
 			}
-			messages.forEach((clientId, logs) -> sendByClientId(clientId, logs.size() > 1 ? MessageType.LOGS : MessageType.LOG, logs));
+			messages.forEach((target, logs) -> {
+				MessageType type = logs.size() > 1 ? MessageType.LOGS : MessageType.LOG;
+				if (target.getSecond() == null) {
+					sendByClientId(target.getFirst(), type, logs);
+				} else {
+					sendByClientId(target.getFirst(), type, target.getSecond(), logs);
+				}
+			});
 		} catch (Exception e) {
 			logger.warn("发送日志失败", e);
 		}

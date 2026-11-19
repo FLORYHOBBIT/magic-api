@@ -10,9 +10,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.ssssssss.magicapi.core.config.MagicPluginConfiguration;
-import org.ssssssss.magicapi.core.model.Plugin;
-import org.ssssssss.magicapi.core.web.MagicControllerRegister;
 import org.ssssssss.magicapi.datasource.model.MagicDynamicDataSource;
 import org.ssssssss.magicapi.modules.db.dialect.Dialect;
 import org.ssssssss.magicapi.modules.db.dialect.DialectAdapter;
@@ -41,9 +38,8 @@ import java.util.List;
 @Configuration
 @ConditionalOnProperty(prefix = "magic-api.upload", name = "enable", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(MagicUploadProperties.class)
-public class MagicUploadConfiguration implements MagicPluginConfiguration {
+public class MagicUploadConfiguration {
 
-	public static final String PLUGIN_NAME = "数据上传";
 
 	private static final Logger logger = LoggerFactory.getLogger(MagicUploadConfiguration.class);
 
@@ -153,15 +149,5 @@ public class MagicUploadConfiguration implements MagicPluginConfiguration {
 		dialectsProvider.getIfAvailable(Collections::emptyList).forEach(dialectAdapter::add);
 		return new UploadModule(runner, channelFactory, dynamicDataSourceProvider::getIfAvailable, dialectAdapter,
 				channelProvider::getIfAvailable, properties.getDefaultBatchSize(), properties.getDefaultRetry(), properties.getRetryBackoff());
-	}
-
-	@Override
-	public Plugin plugin() {
-		return new Plugin(PLUGIN_NAME, "MagicUpload", "magic-upload.1.0.0.iife.js");
-	}
-
-	@Override
-	public MagicControllerRegister controllerRegister() {
-		return (mapping, configuration) -> mapping.registerController(new UploadChannelController(configuration, channelProvider.getObject()));
 	}
 }
