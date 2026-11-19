@@ -21,8 +21,8 @@ class MagicUploadConfigurationTest {
 			assertThat(properties.getDefaultBatchSize()).isEqualTo(1000);
 			assertThat(properties.getDefaultRetry()).isEqualTo(3);
 			assertThat(properties.isInitSchema()).isTrue();
-			assertThat(context.getBean(MagicUploadConfiguration.class).plugin().getName())
-					.isEqualTo(MagicUploadConfiguration.PLUGIN_NAME);
+			assertThat(context).doesNotHaveBean(org.ssssssss.magicapi.core.config.MagicPluginConfiguration.class);
+			assertThat(context).doesNotHaveBean(org.ssssssss.magicapi.core.web.MagicControllerRegister.class);
 			assertThat(context).hasSingleBean(org.ssssssss.magicapi.upload.store.UploadStore.class);
 			assertThat(context).hasSingleBean(org.ssssssss.magicapi.upload.service.UploadJobRunner.class);
 			assertThat(context).hasSingleBean(org.ssssssss.magicapi.upload.script.UploadModule.class);
@@ -30,8 +30,6 @@ class MagicUploadConfigurationTest {
 			assertThat(context).hasSingleBean(org.ssssssss.magicapi.upload.resource.UploadChannelMagicDynamicRegistry.class);
 			assertThat(context).hasSingleBean(org.ssssssss.magicapi.upload.alert.UploadAlertService.class);
 			assertThat(context.getBean(org.ssssssss.magicapi.upload.resource.UploadChannelEncryptor.class).isEnabled()).isFalse();
-			assertThat(context.getBean(MagicUploadConfiguration.class).plugin().getJavascriptFilename())
-					.isEqualTo("magic-upload.1.0.0.iife.js");
 		});
 	}
 

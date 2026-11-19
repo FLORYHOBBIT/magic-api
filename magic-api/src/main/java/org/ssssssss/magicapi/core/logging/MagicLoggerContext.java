@@ -12,6 +12,7 @@ public interface MagicLoggerContext {
 	String LOGGER_NAME = "magic";
 
 	ThreadLocal<String> SESSION = new InheritableThreadLocal<>();
+	ThreadLocal<String> TASK_TEST_RUN = new InheritableThreadLocal<>();
 
 	/**
 	 * 打印日志
@@ -24,7 +25,7 @@ public interface MagicLoggerContext {
 		// 获取SessionId
 		String sessionId = SESSION.get();
 		if (sessionId != null) {
-			WebSocketSessionManager.sendLogs(sessionId, logInfo);
+			WebSocketSessionManager.sendLogs(sessionId, logInfo, TASK_TEST_RUN.get());
 		}
 	}
 

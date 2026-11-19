@@ -39,12 +39,6 @@
             <artifactId>magic-api-plugin-task</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- 数据上传 -->
-        <dependency>
-            <groupId>org.ssssssss</groupId>
-            <artifactId>magic-api-plugin-upload</artifactId>
-            <version>${project.version}</version>
-        </dependency>
         <!-- 集成流程 -->
         <dependency>
             <groupId>org.ssssssss</groupId>
