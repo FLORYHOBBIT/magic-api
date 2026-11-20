@@ -90,7 +90,7 @@ public class CallNodeHandler implements FlowNodeHandler {
 		String name = node.requireString("channel");
 		UploadChannelInfo info = channels.find(name);
 		if (info == null) {
-			throw node.invalid("channel", "找不到外部连接「" + name + "」，请先在「数据上传 → 上传通道」中创建并保存");
+			throw node.invalid("channel", "找不到外部连接「" + name + "」，请核对连接名称或导入包含该连接的集成配置包");
 		}
 		Map<String, Object> options = storage.get().decrypt(info.getOptions());
 		FlowVariables vars = variables.get();
@@ -195,7 +195,7 @@ public class CallNodeHandler implements FlowNodeHandler {
 		}
 		UploadChannelInfo info = channels.find(name);
 		if (info == null) {
-			throw new IllegalArgumentException("找不到外部连接「" + name + "」，请先在「数据上传 → 上传通道」中创建并保存");
+			throw new IllegalArgumentException("找不到外部连接「" + name + "」，请核对连接名称或导入包含该连接的集成配置包");
 		}
 		Map<String, Object> options = storage.get().decrypt(info.getOptions());
 		FlowVariables vars = variables.get();

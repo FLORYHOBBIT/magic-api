@@ -236,9 +236,9 @@ export const NODE_TYPES = {
     },
     call: {
         label: '调用外部系统', color: '#DB2777',
-        description: '通过外部连接（数据上传 → 上传通道）发送报文。输出 success、message、response、data（回执解析结果）。',
+        description: '通过已配置的外部连接发送报文。输出 success、message、response、data（回执解析结果）。',
         fields: [
-            { key: 'channel', label: '外部连接', placeholder: '上传通道名称' },
+            { key: 'channel', label: '外部连接', placeholder: '外部连接名称' },
             { key: 'body', label: '请求体', type: 'code', rows: 4, placeholder: 'prev', help: '表达式；字符串原样发送，对象按 JSON 发送' },
             { key: 'headers', label: '请求头', type: 'kv', help: '值中可用 {{表达式}}' },
             { key: 'params', label: '查询参数', type: 'kv' },
