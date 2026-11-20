@@ -15,3 +15,6 @@ node_modules/
 dist/
 package-lock.json
 build_*.log
+
+# 本地构建交付物（jar、zip、日志、构建说明），不纳入版本库
+outputs/
