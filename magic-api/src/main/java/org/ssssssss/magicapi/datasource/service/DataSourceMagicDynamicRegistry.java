@@ -64,12 +64,11 @@ public class DataSourceMagicDynamicRegistry extends AbstractMagicDynamicRegistry
 		properties.put("url", info.getUrl());
 		properties.put("username", info.getUsername());
 		properties.put("password", info.getPassword());
-		if (StringUtils.isBlank(info.getDriverClassName())) {
-			String driverClass = DatabaseDriver.fromJdbcUrl(info.getUrl()).getDriverClassName();
-			properties.put("driverClassName", driverClass);
-		} else {
-			properties.put("driverClassName", info.getDriverClassName());
+		String driverClass = info.jdbcDriverClassName();
+		if (StringUtils.isBlank(driverClass)) {
+			driverClass = DatabaseDriver.fromJdbcUrl(info.getUrl()).getDriverClassName();
 		}
+		properties.put("driverClassName", driverClass);
 		DataSource datasource = createDataSource(getDataSourceType(info.getType()), properties);
 		magicDynamicDataSource.put(info.getId(), info.getKey(), info.getName(), datasource, info.getMaxRows());
 		if (info.isPrimary()) {
