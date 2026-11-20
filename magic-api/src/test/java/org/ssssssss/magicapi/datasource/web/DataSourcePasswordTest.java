@@ -129,6 +129,30 @@ class DataSourcePasswordTest {
 	}
 
 	@Test
+	void legacyOracleDriverUsesStandardNameAndKeepsPasswordWhenSaved() throws Exception {
+		DataSourceInfo legacy = saved.copy();
+		legacy.setUrl("jdbc:oracle:thin:@localhost:1521/fixture");
+		legacy.setDriverClassName("oracle.jdbc.driver.OracleDriver");
+		assertTrue(service.saveFile(legacy));
+		service.refresh();
+		assertEquals("oracle.jdbc.driver.OracleDriver", service.<DataSourceInfo>file(saved.getId()).getDriverClassName());
+		assertEquals("oracle.jdbc.OracleDriver", legacy.jdbcDriverClassName());
+
+		DataSourceInfo detail = (DataSourceInfo) resources.detail(saved.getId(), request).getData();
+		assertEquals("oracle.jdbc.OracleDriver", detail.getDriverClassName());
+		assertNull(detail.getPassword());
+		assertTrue(detail.hasSameJdbcTarget(legacy));
+		save(detail);
+		service.refresh();
+		assertEquals(PASSWORD, service.<DataSourceInfo>file(saved.getId()).getPassword());
+		assertEquals("oracle.jdbc.OracleDriver", service.<DataSourceInfo>file(saved.getId()).getDriverClassName());
+
+		detail.setDriverClassName(TestDriver.class.getName());
+		assertThrows(InvalidArgumentException.class, () -> save(detail));
+		assertThrows(InvalidArgumentException.class, () -> dataSources.test(detail, request));
+	}
+
+	@Test
 	void copyUsesServerSidePasswordAndKeepsExistingPermissionChecks() {
 		DataSourceInfo input = new DataSourceInfo();
 		input.setId(saved.getId());

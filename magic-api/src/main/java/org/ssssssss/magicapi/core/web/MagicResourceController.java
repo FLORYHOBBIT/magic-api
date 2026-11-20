@@ -117,7 +117,9 @@ public class MagicResourceController extends MagicController implements MagicExc
 		MagicEntity entity = MagicConfiguration.getMagicResourceService().file(id);
 		isTrue(allowVisit(request, Authorization.VIEW, entity), PERMISSION_INVALID);
 		if (entity instanceof DataSourceInfo) {
-			entity = ((DataSourceInfo) entity).withoutPassword();
+			DataSourceInfo detail = ((DataSourceInfo) entity).withoutPassword();
+			detail.setDriverClassName(detail.jdbcDriverClassName());
+			entity = detail;
 		}
 		return new JsonBean<>(entity);
 	}

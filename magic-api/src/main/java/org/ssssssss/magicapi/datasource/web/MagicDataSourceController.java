@@ -35,7 +35,7 @@ public class MagicDataSourceController extends MagicController implements MagicE
 			}
 		}
 		try {
-			Connection connection = JdbcUtils.getConnection(properties.getDriverClassName(), properties.getUrl(), properties.getUsername(), password);
+			Connection connection = JdbcUtils.getConnection(properties.jdbcDriverClassName(), properties.getUrl(), properties.getUsername(), password);
 			JdbcUtils.close(connection);
 		} catch (Exception e) {
 			return new JsonBean<>("请检查连接配置或查看服务端日志。");

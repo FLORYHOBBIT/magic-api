@@ -7,6 +7,9 @@ import java.util.Objects;
 
 public class DataSourceInfo extends MagicEntity {
 
+	private static final String LEGACY_ORACLE_DRIVER = "oracle.jdbc.driver.OracleDriver";
+	private static final String ORACLE_DRIVER = "oracle.jdbc.OracleDriver";
+
 	/**
 	 * URL
 	 */
@@ -114,7 +117,14 @@ public class DataSourceInfo extends MagicEntity {
 
 	public boolean hasSameJdbcTarget(DataSourceInfo other) {
 		return Objects.equals(url, other.url) && Objects.equals(username, other.username)
-				&& Objects.equals(driverClassName, other.driverClassName);
+				&& Objects.equals(jdbcDriverClassName(), other.jdbcDriverClassName());
+	}
+
+	public String jdbcDriverClassName() {
+		if (LEGACY_ORACLE_DRIVER.equals(driverClassName) && url != null && url.startsWith("jdbc:oracle:")) {
+			return ORACLE_DRIVER;
+		}
+		return driverClassName;
 	}
 
 	public DataSourceInfo withoutPassword() {
