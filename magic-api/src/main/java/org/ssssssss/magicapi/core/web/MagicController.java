@@ -61,7 +61,7 @@ public class MagicController implements JsonCodeConstants {
 		return configuration.getAuthorizationInterceptor().allowVisit(magicUser, request, authorization);
 	}
 
-	boolean allowVisit(MagicHttpServletRequest request, Authorization authorization, MagicEntity entity) {
+	protected boolean allowVisit(MagicHttpServletRequest request, Authorization authorization, MagicEntity entity) {
 		if (authorization == null) {
 			return true;
 		}

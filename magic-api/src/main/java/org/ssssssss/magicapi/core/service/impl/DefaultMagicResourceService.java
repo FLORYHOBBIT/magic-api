@@ -19,6 +19,7 @@ import org.ssssssss.magicapi.core.model.*;
 import org.ssssssss.magicapi.core.service.AbstractPathMagicResourceStorage;
 import org.ssssssss.magicapi.core.service.MagicResourceService;
 import org.ssssssss.magicapi.core.service.MagicResourceStorage;
+import org.ssssssss.magicapi.datasource.model.DataSourceInfo;
 import org.ssssssss.magicapi.utils.IoUtils;
 import org.ssssssss.magicapi.utils.JsonUtils;
 import org.ssssssss.magicapi.utils.WebUtils;
@@ -526,6 +527,10 @@ public class DefaultMagicResourceService implements MagicResourceService, JsonCo
 				Group group = groupCache.get(entity.getGroupId());
 				storage = (MagicResourceStorage<T>) this.storages.get(group.getType());
 			}
+			if (entity instanceof DataSourceInfo) {
+				isTrue(storage.magicClass().isInstance(entity), NOT_SUPPORTED_GROUP_TYPE);
+				retainDataSourcePassword(entity);
+			}
 
 			// 检查脚本
 			if (storage.requiredScript()) {
@@ -574,6 +579,21 @@ public class DefaultMagicResourceService implements MagicResourceService, JsonCo
 			}
 			return flag;
 		});
+	}
+
+	private void retainDataSourcePassword(MagicEntity entity) {
+		MagicEntity existing = fileCache.get(entity.getId());
+		if (!(entity instanceof DataSourceInfo) || !(existing instanceof DataSourceInfo)) {
+			return;
+		}
+		DataSourceInfo dataSource = (DataSourceInfo) entity;
+		DataSourceInfo saved = (DataSourceInfo) existing;
+		if (dataSource.getPassword() == null && saved.getPassword() != null) {
+			isTrue(saved.getPassword().isEmpty() || (dataSource.hasSameJdbcTarget(saved)
+					&& Objects.equals(dataSource.getType(), saved.getType())
+					&& Objects.equals(dataSource.getProperties(), saved.getProperties())), DS_PASSWORD_REQUIRED_FOR_CONNECTION_CHANGE);
+			dataSource.setPassword(saved.getPassword());
+		}
 	}
 
 	private List<MagicEntity> deleteGroup(String id) {
@@ -788,6 +808,7 @@ public class DefaultMagicResourceService implements MagicResourceService, JsonCo
 			return writeLock(() -> {
 				readAllResource(zipResource, groups, entities, !full);
 				if (full) {
+					entities.forEach(this::retainDataSourcePassword);
 					// 全量模式先删除处理。
 					root.delete();
 					this.init();

@@ -13,6 +13,7 @@ import org.ssssssss.magicapi.core.resource.Resource;
 import org.ssssssss.magicapi.core.service.MagicDynamicRegistry;
 import org.ssssssss.magicapi.core.service.MagicResourceService;
 import org.ssssssss.magicapi.core.servlet.MagicHttpServletRequest;
+import org.ssssssss.magicapi.datasource.model.DataSourceInfo;
 import org.ssssssss.magicapi.utils.IoUtils;
 import org.ssssssss.magicapi.utils.ROT13Utils;
 
@@ -89,7 +90,16 @@ public class MagicResourceController extends MagicController implements MagicExc
 		if (entity ==null){
 			return new JsonBean<>(null);
 		}
-		if(entity.getId() != null && "1".equals(auto)){
+		if (entity instanceof DataSourceInfo && entity.getId() != null) {
+			MagicEntity existing = service.file(entity.getId());
+			notNull(existing, FILE_NOT_FOUND);
+			isTrue(existing instanceof DataSourceInfo && allowVisit(request, Authorization.SAVE, existing), PERMISSION_INVALID);
+			DataSourceInfo dataSource = (DataSourceInfo) entity;
+			if ("".equals(dataSource.getPassword())) {
+				dataSource.setPassword(null);
+			}
+		}
+		if (!(entity instanceof DataSourceInfo) && entity.getId() != null && "1".equals(auto)) {
 			MagicEntity oldInfo = service.file(entity.getId());
 			if(oldInfo != null && Objects.equals(oldInfo, entity)){
 				return new JsonBean<>(entity.getId());
@@ -106,6 +116,9 @@ public class MagicResourceController extends MagicController implements MagicExc
 	public JsonBean<MagicEntity> detail(@PathVariable("id") String id, MagicHttpServletRequest request) {
 		MagicEntity entity = MagicConfiguration.getMagicResourceService().file(id);
 		isTrue(allowVisit(request, Authorization.VIEW, entity), PERMISSION_INVALID);
+		if (entity instanceof DataSourceInfo) {
+			entity = ((DataSourceInfo) entity).withoutPassword();
+		}
 		return new JsonBean<>(entity);
 	}
 
