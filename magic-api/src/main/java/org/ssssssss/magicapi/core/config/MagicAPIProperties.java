@@ -18,6 +18,12 @@ import java.util.UUID;
 @ConfigurationProperties(prefix = "magic-api")
 public class MagicAPIProperties {
 
+    @NestedConfigurationProperty
+    private TraceUploadQueryConfig traceUploadQuery = new TraceUploadQueryConfig();
+
+    public TraceUploadQueryConfig getTraceUploadQuery() { return traceUploadQuery; }
+    public void setTraceUploadQuery(TraceUploadQueryConfig value) { this.traceUploadQuery = value; }
+
 	/**
 	 * 版本号
 	 */
