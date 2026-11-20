@@ -29,8 +29,9 @@ public class JdbcUtils {
 		try {
 			return DriverManager.getConnection(url, username, password);
 		} catch (SQLException e) {
-			logger.error("获取Jdbc链接失败", e);
-			throw new MagicAPIException("获取Jdbc链接失败：" + e.getMessage());
+			// 驱动异常可能包含连接参数或密码。
+			logger.warn("获取 JDBC 连接失败，驱动错误代码：{}", e.getErrorCode());
+			throw new MagicAPIException("获取 JDBC 连接失败");
 		}
 	}
 

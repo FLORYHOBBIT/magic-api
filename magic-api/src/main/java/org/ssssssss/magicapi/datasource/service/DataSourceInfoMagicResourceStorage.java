@@ -1,5 +1,9 @@
 package org.ssssssss.magicapi.datasource.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.util.StreamUtils;
 import org.ssssssss.magicapi.datasource.model.DataSourceInfo;
 import org.ssssssss.magicapi.core.config.JsonCodeConstants;
 import org.ssssssss.magicapi.core.model.MagicEntity;
@@ -8,20 +12,32 @@ import org.ssssssss.magicapi.core.service.MagicResourceStorage;
 import org.ssssssss.magicapi.utils.IoUtils;
 import org.ssssssss.magicapi.utils.JsonUtils;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Objects;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 public class DataSourceInfoMagicResourceStorage implements MagicResourceStorage<DataSourceInfo>, JsonCodeConstants {
+
+	public static final String FOLDER = "datasource";
+
+	private static final String SUFFIX = ".json";
+
+	private static final ObjectMapper EXPORT_MAPPER = new ObjectMapper();
 
 	private MagicResourceService magicResourceService;
 
 	@Override
 	public String folder() {
-		return "datasource";
+		return FOLDER;
 	}
 
 	@Override
 	public String suffix() {
-		return ".json";
+		return SUFFIX;
 	}
 
 	@Override
@@ -74,5 +90,35 @@ public class DataSourceInfoMagicResourceStorage implements MagicResourceStorage<
 	@Override
 	public byte[] write(MagicEntity entity) {
 		return JsonUtils.toJsonBytes(entity);
+	}
+
+	public static void stripExportPasswords(InputStream archive, OutputStream output, boolean dataSourceGroup) throws IOException {
+		try (ZipInputStream input = new ZipInputStream(archive); ZipOutputStream sanitized = new ZipOutputStream(output)) {
+			ZipEntry entry;
+			while ((entry = input.getNextEntry()) != null) {
+				String name = entry.getName();
+				sanitized.putNextEntry(new ZipEntry(name));
+				String path = name.replace('\\', '/');
+				boolean definitionEntry = dataSourceGroup || path.regionMatches(true, 0, FOLDER + "/", 0, FOLDER.length() + 1);
+				if (!entry.isDirectory() && path.endsWith(SUFFIX) && definitionEntry) {
+					JsonNode definition = readExportDefinition(input);
+					if (definition instanceof ObjectNode) {
+						((ObjectNode) definition).remove("password");
+						sanitized.write(EXPORT_MAPPER.writeValueAsBytes(definition));
+					}
+				} else {
+					StreamUtils.copy(input, sanitized);
+				}
+				sanitized.closeEntry();
+			}
+		}
+	}
+
+	private static JsonNode readExportDefinition(InputStream input) throws IOException {
+		try {
+			return EXPORT_MAPPER.readTree(StreamUtils.copyToByteArray(input));
+		} catch (IOException ignored) {
+			throw new IOException("无法读取导出包中的数据源配置。");
+		}
 	}
 }

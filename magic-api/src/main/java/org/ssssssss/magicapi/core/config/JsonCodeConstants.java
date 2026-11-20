@@ -78,6 +78,8 @@ public interface JsonCodeConstants {
 	JsonCode LOCK_PASSWORD_REQUIRED = new JsonCode(1041, "请输入当前登录账号的登录密码。");
 	JsonCode LOCK_PASSWORD_INVALID = new JsonCode(1042, "登录密码不正确，未改变锁定状态。");
 
+	JsonCode DS_PASSWORD_REQUIRED_FOR_CONNECTION_CHANGE = new JsonCode(1043, "已修改数据源连接配置，请重新输入数据库密码。");
+
 	JsonCode PARAMETER_INVALID = new JsonCode(1028, "参数验证失败");
 
 	JsonCode HEADER_INVALID = new JsonCode(1029, "header验证失败");

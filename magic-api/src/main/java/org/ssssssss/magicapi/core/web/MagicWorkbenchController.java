@@ -20,6 +20,7 @@ import org.ssssssss.magicapi.core.model.*;
 import org.ssssssss.magicapi.core.service.MagicAPIService;
 import org.ssssssss.magicapi.core.servlet.MagicHttpServletRequest;
 import org.ssssssss.magicapi.core.servlet.MagicHttpServletResponse;
+import org.ssssssss.magicapi.datasource.service.DataSourceInfoMagicResourceStorage;
 import org.ssssssss.magicapi.modules.db.SQLModule;
 import org.ssssssss.magicapi.utils.ClassScanner;
 import org.ssssssss.magicapi.utils.IoUtils;
@@ -293,13 +294,17 @@ public class MagicWorkbenchController extends MagicController implements MagicEx
 		response.setContentType(MediaType.APPLICATION_OCTET_STREAM_VALUE);
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		magicAPIService.download(groupId, resources, os);
+		Group group = StringUtils.isBlank(groupId) ? null : MagicConfiguration.getMagicResourceService().getGroup(groupId);
+		boolean dataSourceGroup = group != null && DataSourceInfoMagicResourceStorage.FOLDER.equals(group.getType());
+		ByteArrayOutputStream sanitized = new ByteArrayOutputStream();
+		DataSourceInfoMagicResourceStorage.stripExportPasswords(new ByteArrayInputStream(os.toByteArray()), sanitized, dataSourceGroup);
 		String filename = "magic-api-all.zip";
 		if (StringUtils.isBlank(groupId)) {
 			filename = "magic-api-group.zip";
 		}
 		response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + URLEncoder.encode(filename, "UTF-8"));
 		try (OutputStream stream = response.getOutputStream()) {
-			stream.write(os.toByteArray());
+			sanitized.writeTo(stream);
 			stream.flush();
 		}
 	}

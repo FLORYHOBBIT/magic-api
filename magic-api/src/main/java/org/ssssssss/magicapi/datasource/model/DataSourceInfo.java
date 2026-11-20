@@ -1,6 +1,9 @@
 package org.ssssssss.magicapi.datasource.model;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import org.ssssssss.magicapi.core.model.MagicEntity;
+
+import java.util.Objects;
 
 public class DataSourceInfo extends MagicEntity {
 
@@ -68,6 +71,7 @@ public class DataSourceInfo extends MagicEntity {
 		this.username = username;
 	}
 
+	@JsonInclude(JsonInclude.Include.NON_NULL)
 	public String getPassword() {
 		return password;
 	}
@@ -108,6 +112,17 @@ public class DataSourceInfo extends MagicEntity {
 		this.type = type;
 	}
 
+	public boolean hasSameJdbcTarget(DataSourceInfo other) {
+		return Objects.equals(url, other.url) && Objects.equals(username, other.username)
+				&& Objects.equals(driverClassName, other.driverClassName);
+	}
+
+	public DataSourceInfo withoutPassword() {
+		DataSourceInfo detail = copy();
+		detail.setPassword(null);
+		return detail;
+	}
+
 	@Override
 	public MagicEntity simple() {
 		DataSourceInfo dataSourceInfo = new DataSourceInfo();
@@ -118,7 +133,7 @@ public class DataSourceInfo extends MagicEntity {
 	}
 
 	@Override
-	public MagicEntity copy() {
+	public DataSourceInfo copy() {
 		DataSourceInfo dataSourceInfo = new DataSourceInfo();
 		super.copyTo(dataSourceInfo);
 		dataSourceInfo.setUsername(this.username);

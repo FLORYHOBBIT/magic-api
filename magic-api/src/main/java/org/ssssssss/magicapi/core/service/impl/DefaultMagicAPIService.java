@@ -25,6 +25,7 @@ import org.ssssssss.magicapi.core.model.*;
 import org.ssssssss.magicapi.core.service.MagicAPIService;
 import org.ssssssss.magicapi.core.service.MagicResourceService;
 import org.ssssssss.magicapi.core.servlet.MagicRequestContextHolder;
+import org.ssssssss.magicapi.datasource.service.DataSourceInfoMagicResourceStorage;
 import org.ssssssss.magicapi.function.model.FunctionInfo;
 import org.ssssssss.magicapi.function.service.FunctionMagicDynamicRegistry;
 import org.ssssssss.magicapi.utils.PathUtils;
@@ -152,12 +153,15 @@ public class DefaultMagicAPIService implements MagicAPIService, JsonCodeConstant
 		notBlank(target, TARGET_IS_REQUIRED);
 		notBlank(secretKey, SECRET_KEY_IS_REQUIRED);
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ByteArrayOutputStream sanitized = new ByteArrayOutputStream();
 		try {
 			download(null, resources, baos);
+			DataSourceInfoMagicResourceStorage.stripExportPasswords(new ByteArrayInputStream(baos.toByteArray()), sanitized, false);
 		} catch (IOException e) {
-			return new JsonBean<>(-1, e.getMessage());
+			logger.warn("生成推送资源包失败", e);
+			return new JsonBean<>(-1, "生成推送资源包失败");
 		}
-		byte[] bytes = baos.toByteArray();
+		byte[] bytes = sanitized.toByteArray();
 		long timestamp = System.currentTimeMillis();
 		RestTemplate restTemplate = new RestTemplate();
 		MultiValueMap<String, Object> param = new LinkedMultiValueMap<>();
